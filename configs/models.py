@@ -1,5 +1,5 @@
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification, AutoConfig, BitsAndBytesConfig, GenerationConfig 
+#import torch
+#from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification, AutoConfig, BitsAndBytesConfig, GenerationConfig 
 
 double_quant_cfg = BitsAndBytesConfig(
    load_in_4bit=True,
