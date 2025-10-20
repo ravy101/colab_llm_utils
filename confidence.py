@@ -1,7 +1,7 @@
 import math
-import likelihood
-import text
-import misc
+from . import likelihood
+from . import text
+from . import misc
 import numpy as np
 
 # it adjusts likelihoods based on the mean likelihood of a token (but only in the top 10)
