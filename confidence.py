@@ -134,6 +134,6 @@ def get_cs_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix='', posi
         dist_likes = np.array(dist_likes)
         all_dist_likes.append(dist_likes)
     df[tag + '_cs_likes'+suffix] = all_dist_likes
-    df[tag + '_cs_chow_av'+suffix] = [chow_av(l) for l in df[tag + '_cs_likes'+suffix]]
-    df[tag + '_cs_chow_sum'+suffix] = [chow_sum(l) for l in df[tag + '_cs_likes'+suffix]]
+    df[tag + '_cs_chow_av'+suffix] = [likelihood.chow_av(l) for l in df[tag + '_cs_likes'+suffix]]
+    df[tag + '_cs_chow_sum'+suffix] = [likelihood.chow_sum(l) for l in df[tag + '_cs_likes'+suffix]]
 
