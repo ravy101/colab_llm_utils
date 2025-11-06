@@ -112,7 +112,6 @@ def get_cs_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix='', posi
             for t in tokens:
 
                 if collapse_prefix and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
-                    print(f"tokens collapse {tokenizer.decode(output_tokens[i].item())} {tokenizer.decode(t)}")
                     sims.append(1)
                 elif position_correct and t in future_tokens:
                     distance = np.where(future_tokens == t)[0][0] + 1
