@@ -30,6 +30,12 @@ def chow_av(likelihoods):
        result = 0
     return result
 
+def log_chow_av(likelihoods):
+    result = np.log(likelihoods).mean()
+    if np.isnan(result):
+       result = 0
+    return result
+
 def chow_prod_av(probas):
     result =  np.prod(probas)
     if np.isnan(result):
