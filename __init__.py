@@ -14,3 +14,6 @@ for loader, module_name, is_pkg in pkgutil.walk_packages(__path__, __name__ + ".
         logging.error(f"Failed to import module '{module_name}': {e}")
         # Optionally, re-raise the error if you want the main package import to fail
         # raise
+
+__version__ = "0.0.7"
+
