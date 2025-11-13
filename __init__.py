@@ -3,6 +3,7 @@ import importlib
 import logging
 import sys
 
+from . import configs
 # Configure basic logging to see the errors
 logging.basicConfig(level=logging.ERROR, stream=sys.stderr)
 
