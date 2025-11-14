@@ -14,24 +14,34 @@ single_quant_cfg = BitsAndBytesConfig(
    llm_int8_enable_fp32_cpu_offload=True
 )
 
+llama7b = {"model_name": "meta-llama/Llama-2-7b-hf",
+                 "hf_model_func": AutoModelForCausalLM,
+                 "bnb_config": double_quant_cfg,
+                 #"bnb_config": None,
+                 "block_limit": None
+                 }
+
+llama13b = {"model_name": "meta-llama/Llama-2-13b-hf",
+                 "hf_model_func": AutoModelForCausalLM,
+                 "bnb_config": single_quant_cfg,
+                 #"bnb_config": None,
+                 "block_limit": None
+                 }
+
 llama7b_chat = {"model_name": "meta-llama/Llama-2-7b-chat-hf",
                  "hf_model_func": AutoModelForCausalLM,
                  "bnb_config": double_quant_cfg,
+                 #"bnb_config": None,
                  "block_limit": None
                  }
 
 llama13b_chat = {"model_name": "meta-llama/Llama-2-13b-chat-hf",
                  "hf_model_func": AutoModelForCausalLM,
-                 "bnb_config": double_quant_cfg,
+                 "bnb_config": single_quant_cfg,
+                 #"bnb_config": None,
                  "block_limit": None
                  }
 
-
-llama13b_chat = {"model_name": "meta-llama/Llama-2-13b-chat-hf",
-                 "hf_model_func": AutoModelForCausalLM,
-                 "bnb_config": double_quant_cfg,
-                 "block_limit": None
-                 }
 llama70b_chat = {"model_name": "meta-llama/Llama-2-70b-chat-hf",
                  "hf_model_func": AutoModelForCausalLM,
                  "bnb_config": double_quant_cfg,

@@ -10,7 +10,6 @@ def doc_to_text_wmt_fr(item, from_lang = 'fr', to_lang = 'en'):
 def doc_to_text_wmt_ru(item, from_lang = 'en', to_lang = 'ru'):
   return f"Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {item['translation'][from_lang]}\n "
 
-
 def doc_to_text_wmt_de(item, from_lang = 'de', to_lang = 'en'):
   return f"Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {item['translation'][from_lang]}\n "
 
