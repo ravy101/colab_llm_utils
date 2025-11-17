@@ -1,4 +1,4 @@
-import torch.functional as F
+import torch.nn.functional as F
 import string
 import evaluate
 
