@@ -51,7 +51,7 @@ llama70b_chat = {"model_name": "meta-llama/Llama-2-70b-chat-hf",
 qwen72b = {"model_name": "Qwen/Qwen2-72B-Instruct",
                  "hf_model_func": AutoModelForCausalLM,
                  "bnb_config": double_quant_cfg,
-                 "block_limit": None
+                 "block_limit": 0
                  }
 
 t5_base = {"model_name": "google/flan-t5-base",
