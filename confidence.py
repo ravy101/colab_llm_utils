@@ -69,6 +69,7 @@ def get_emb_likes(df, embedder, suffix=''):
             dist = misc.dist_mh(w_sum, emb_dict[output_tokens[i].item()].squeeze())
 
             dist_likes.append(dist)
+        
         dist_likes = np.array(dist_likes)
         all_dist_likes.append(dist_likes)
     df['dist_likes'+suffix] = all_dist_likes
@@ -124,11 +125,13 @@ def get_cs_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix='', posi
                     embed = emb_dict[t].squeeze()
                     sim = misc.sim_cosine(chosen_emb, embed)
                     sims.append((1-imp_offset)*sim + imp_offset)
-                w_sims = np.array([s*p for s, p in zip(sims, probs)])
-                w_sum = w_sims.sum(axis=0)
-                dist_likes.append(w_sum)
-            if len(dist_likes) == 0:
-                dist_likes.append(0)
+
+            w_sims = np.array([s*p for s, p in zip(sims, probs)])
+            w_sum = w_sims.sum(axis=0)
+            dist_likes.append(w_sum)
+
+        if len(dist_likes) == 0:
+            dist_likes.append(0)
 
         dist_likes = np.array(dist_likes)
         all_dist_likes.append(dist_likes)
