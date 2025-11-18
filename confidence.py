@@ -139,3 +139,66 @@ def get_cs_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix='', posi
     df[tag + '_cs_chow_av'+suffix] = [likelihood.chow_av(l) for l in df[tag + '_cs_likes'+suffix]]
     df[tag + '_cs_chow_sum'+suffix] = [likelihood.chow_sum(l) for l in df[tag + '_cs_likes'+suffix]]
 
+
+def get_cs_semantic_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix='', position_correct = True, skip_stopwords = True, collapse_prefix = True, tag = '', future_alpha = .9):
+    emb_dict = {}
+    pos_dict = {}
+    for logits in df['logit_outs' + suffix]:
+        for l in logits:
+            for k, v in l.items():
+                if k not in emb_dict:
+                    emb_dict[k] = text.semantic_transform(embedder.get_token_embedding(k))
+                    pos_dict[k] = text.get_pos(tokenizer.decode(k))
+    for token_outs in df['token_outs' + suffix]:
+        for token in token_outs:
+            if token.item() not in emb_dict:
+                emb_dict[token.item()] = text.semantic_transform(embedder.get_token_embedding(token.item()))
+                pos_dict[token.item()] = text.get_pos(tokenizer.decode(token.item()))
+    all_dist_likes = []
+    #for each response
+    for logits, token_outs in zip(df['logit_outs' + suffix], df['token_outs' + suffix]):
+        #list of candidate likes
+        dist_likes = []
+        output_tokens = token_outs[-len(logits):]
+        #for each token in sequence
+        for i, l in enumerate(logits):
+            # embed for chosen token
+            if skip_stopwords and output_tokens[i].item() in stopword_ids:
+                continue
+
+            chosen_emb = emb_dict[output_tokens[i].item()].squeeze()
+            future_tokens = output_tokens[i+1:]
+
+            #lists of candidate tokens at position
+            tokens = list(l.keys())
+            probs = likelihood.softmax_from_loglik(list(l.values()))
+            sims = []
+            for t in tokens:
+
+                if collapse_prefix and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
+                    sims.append(1)
+                elif position_correct and t in future_tokens:
+                    distance = np.where(future_tokens == t)[0][0] + 1
+                    decay = future_alpha**distance
+                    embed = emb_dict[t].squeeze()
+                    sim = misc.sim_cosine(chosen_emb, embed)
+                    sims.append(((1-decay)*sim + decay))
+                else:
+                    imp_offset = text.get_token_importance(pos_dict[t])
+                    embed = emb_dict[t].squeeze()
+                    sim = misc.sim_cosine(chosen_emb, embed)
+                    sims.append((1-imp_offset)*sim + imp_offset)
+
+            w_sims = np.array([s*p for s, p in zip(sims, probs)])
+            w_sum = w_sims.sum(axis=0)
+            dist_likes.append(w_sum)
+
+        if len(dist_likes) == 0:
+            dist_likes.append(0)
+
+        dist_likes = np.array(dist_likes)
+        all_dist_likes.append(dist_likes)
+    df[tag + '_cs_likes'+suffix] = all_dist_likes
+    df[tag + '_cs_chow_av'+suffix] = [likelihood.chow_av(l) for l in df[tag + '_cs_likes'+suffix]]
+    df[tag + '_cs_chow_sum'+suffix] = [likelihood.chow_sum(l) for l in df[tag + '_cs_likes'+suffix]]
+
