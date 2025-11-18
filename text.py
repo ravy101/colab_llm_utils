@@ -76,7 +76,8 @@ def calculate_grammatical_direction(
     return G_vector
 
 def semantic_transform(
-    raw_embedding: np.ndarray
+    raw_embedding: np.ndarray,
+    G_vector: np.ndarray
 ) -> np.ndarray:
     """
     Projects the raw embedding onto the Grammatical Direction Vector (G) 
@@ -86,7 +87,7 @@ def semantic_transform(
     Since G is normalized, ||G||^2 = 1.
     Formula simplifies to: e_sem = e_raw - (e_raw . G) * G
     """
-    if _G_vector is None:
+    if G_vector is None:
         raise ValueError("G vector note calculated.")
     # 1. Calculate the scalar component (projection coefficient)
     # The dot product (e_raw . G) gives the magnitude of the raw vector along G

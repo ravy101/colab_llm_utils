@@ -141,18 +141,21 @@ def get_cs_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix='', posi
 
 
 def get_cs_semantic_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix='', position_correct = True, skip_stopwords = True, collapse_prefix = True, tag = '', future_alpha = .9):
+    
+    g = text.calculate_grammatical_direction(embedder, tokenizer(text.GRAMMATICAL_TOKENS)['input_ids'])
+
     emb_dict = {}
     pos_dict = {}
     for logits in df['logit_outs' + suffix]:
         for l in logits:
             for k, v in l.items():
                 if k not in emb_dict:
-                    emb_dict[k] = text.semantic_transform(embedder.get_token_embedding(k))
+                    emb_dict[k] = text.semantic_transform(embedder.get_token_embedding(k), g)
                     pos_dict[k] = text.get_pos(tokenizer.decode(k))
     for token_outs in df['token_outs' + suffix]:
         for token in token_outs:
             if token.item() not in emb_dict:
-                emb_dict[token.item()] = text.semantic_transform(embedder.get_token_embedding(token.item()))
+                emb_dict[token.item()] = text.semantic_transform(embedder.get_token_embedding(token.item()), g)
                 pos_dict[token.item()] = text.get_pos(tokenizer.decode(token.item()))
     all_dist_likes = []
     #for each response
