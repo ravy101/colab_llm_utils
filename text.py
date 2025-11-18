@@ -41,6 +41,8 @@ GRAMMATICAL_TOKENS: List[str] = [
     ",", ".", "?", "!", ":", ";", "-", "(", ")", "[", "]", "'", '"', "\n"
 ]
 
+_G_vector = None
+
 def calculate_grammatical_direction(
     embedder, 
     gram_tokens: List[int],
@@ -55,7 +57,7 @@ def calculate_grammatical_direction(
     for token in gram_tokens:
         try:
             # We assume the embedder handles tokenization nuances (e.g., Llama's leading space)
-            embedding = embedder.get_embedding(token)
+            embedding = embedder.get_token_embedding(token)
             if embedding.sum() != 0: # Check if a valid (non-zero) embedding was returned
                 embeddings.append(embedding)
         except Exception as e:
@@ -70,12 +72,11 @@ def calculate_grammatical_direction(
     
     # 3. Normalize G (optional but recommended for stable projection)
     G_vector = G_vector / norm(G_vector)
-    
+    _G_vector = G_vector
     return G_vector
 
 def semantic_transform(
-    raw_embedding: np.ndarray, 
-    G_vector: np.ndarray
+    raw_embedding: np.ndarray
 ) -> np.ndarray:
     """
     Projects the raw embedding onto the Grammatical Direction Vector (G) 
@@ -85,13 +86,15 @@ def semantic_transform(
     Since G is normalized, ||G||^2 = 1.
     Formula simplifies to: e_sem = e_raw - (e_raw . G) * G
     """
+    if _G_vector is None:
+        raise ValueError("G vector note calculated.")
     # 1. Calculate the scalar component (projection coefficient)
     # The dot product (e_raw . G) gives the magnitude of the raw vector along G
-    projection_scalar = np.dot(raw_embedding, G_vector)
+    projection_scalar = np.dot(raw_embedding, _G_vector)
     
     # 2. Calculate the grammatical component vector (e_gram)
     # e_gram = scalar * G_vector
-    e_gram = projection_scalar * G_vector
+    e_gram = projection_scalar * _G_vector
     
     # 3. Subtract the grammatical component from the raw embedding
     # This leaves the orthogonal, semantic component
