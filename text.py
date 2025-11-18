@@ -1,5 +1,8 @@
 import spacy
 import math
+import numpy as np
+from numpy.linalg import norm
+from typing import List, Dict, Union
 
 nlp = spacy.load("en_core_web_sm")
 
@@ -30,3 +33,71 @@ def get_pos(token):
         result = 'N/A'
     return result
 
+
+GRAMMATICAL_TOKENS: List[str] = [
+    "the", "a", "an", "is", "are", "was", "were", "be", "being", "been", 
+    "and", "or", "but", "for", "of", "in", "to", "with", "on", "at", 
+    "from", "by", "as", "that", "which", "who", "whom", "where", "when",
+    ",", ".", "?", "!", ":", ";", "-", "(", ")", "[", "]", "'", '"', "\n"
+]
+
+def calculate_grammatical_direction(
+    embedder, 
+    gram_tokens: List[int],
+) -> np.ndarray:
+    """
+    Calculates the Grammatical Direction Vector (G) by averaging the 
+    embeddings of common function words and punctuation.
+    """
+    embeddings: List[np.ndarray] = []
+    
+    # 1. Collect embeddings for all grammatical tokens
+    for token in gram_tokens:
+        try:
+            # We assume the embedder handles tokenization nuances (e.g., Llama's leading space)
+            embedding = embedder.get_embedding(token)
+            if embedding.sum() != 0: # Check if a valid (non-zero) embedding was returned
+                embeddings.append(embedding)
+        except Exception as e:
+            print(f"Warning: Could not get embedding for token '{token}'. Error: {e}")
+            continue
+
+    if not embeddings:
+        raise ValueError("No valid grammatical embeddings found. Check your embedder or token list.")
+
+    # 2. Average the embeddings to get the direction G
+    G_vector = np.mean(embeddings, axis=0)
+    
+    # 3. Normalize G (optional but recommended for stable projection)
+    G_vector = G_vector / norm(G_vector)
+    
+    return G_vector
+
+def semantic_transform(
+    raw_embedding: np.ndarray, 
+    G_vector: np.ndarray
+) -> np.ndarray:
+    """
+    Projects the raw embedding onto the Grammatical Direction Vector (G) 
+    and subtracts the resulting component to yield the purely semantic vector.
+
+    Formula: e_sem = e_raw - ( (e_raw . G) / ||G||^2 ) * G
+    Since G is normalized, ||G||^2 = 1.
+    Formula simplifies to: e_sem = e_raw - (e_raw . G) * G
+    """
+    # 1. Calculate the scalar component (projection coefficient)
+    # The dot product (e_raw . G) gives the magnitude of the raw vector along G
+    projection_scalar = np.dot(raw_embedding, G_vector)
+    
+    # 2. Calculate the grammatical component vector (e_gram)
+    # e_gram = scalar * G_vector
+    e_gram = projection_scalar * G_vector
+    
+    # 3. Subtract the grammatical component from the raw embedding
+    # This leaves the orthogonal, semantic component
+    e_sem = raw_embedding - e_gram
+    
+    # 4. Normalize the semantic vector (recommended for cosine similarity consistency)
+    e_sem_normalized = e_sem / norm(e_sem)
+    
+    return e_sem_normalized
