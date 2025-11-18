@@ -57,7 +57,7 @@ def calculate_grammatical_direction(
     for token in gram_tokens:
         try:
             # We assume the embedder handles tokenization nuances (e.g., Llama's leading space)
-            embedding = embedder.get_token_embedding(token)
+            embedding = embedder.get_token_embedding(token[1]).squeeze()
             if embedding.sum() != 0: # Check if a valid (non-zero) embedding was returned
                 embeddings.append(embedding)
         except Exception as e:
