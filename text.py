@@ -91,11 +91,11 @@ def semantic_transform(
         raise ValueError("G vector note calculated.")
     # 1. Calculate the scalar component (projection coefficient)
     # The dot product (e_raw . G) gives the magnitude of the raw vector along G
-    projection_scalar = np.dot(raw_embedding, _G_vector)
+    projection_scalar = np.dot(raw_embedding, G_vector)
     
     # 2. Calculate the grammatical component vector (e_gram)
     # e_gram = scalar * G_vector
-    e_gram = projection_scalar * _G_vector
+    e_gram = projection_scalar * G_vector
     
     # 3. Subtract the grammatical component from the raw embedding
     # This leaves the orthogonal, semantic component
