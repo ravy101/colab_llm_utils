@@ -42,7 +42,7 @@ def get_comet():
     global _comet
     if _comet is None:
         print("Loading COMET metric...")
-        _comet = evaluate.load("comet", config_name="wmt22-comet-da")
+        _comet = evaluate.load("comet", config_name="wmt21-comet-da")
     return _comet
 
 
