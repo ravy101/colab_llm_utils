@@ -8,6 +8,7 @@ _bem_model = None
 _meteor = None
 _bleurt = None
 _rouge = None
+_comet = None
 
 # -------------------
 # Lazy-loaded metric getters
@@ -35,6 +36,14 @@ def get_rouge():
         print("Loading ROUGE metric...")
         _rouge = evaluate.load("rouge")
     return _rouge
+
+def get_comet():
+    """Return the COMET scorer (lazy loaded)."""
+    global _comet
+    if _comet is None:
+        print("Loading COMET metric...")
+        _comet = evaluate.load("comet", config_name="wmt22-comet-da")
+    return _comet
 
 
 
@@ -125,6 +134,19 @@ def best_bleurt(prediction, reference_aliases):
     for alias in reference_aliases[:MAX_ALIASES]:
       print(f"computing bleurt {prediction} == {alias}")
       result = get_bleurt().compute(predictions=prediction, references=[alias])
+      scores.append(result["scores"])
+    return max(scores)
+
+def best_comet(sources, prediction, reference_aliases):
+    # Compute comet for all aliases and take the best
+    scores = []
+    
+    if type(reference_aliases) == str:
+      reference_aliases = [reference_aliases]
+
+    for alias in reference_aliases[:MAX_ALIASES]:
+      print(f"computing comet {prediction} == {alias}")
+      result = get_comet().compute(predictions=prediction, references=[alias], sources=[])
       scores.append(result["scores"])
     return max(scores)
 

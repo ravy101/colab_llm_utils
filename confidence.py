@@ -77,7 +77,7 @@ def get_emb_likes(df, embedder, suffix=''):
     df['dist_chow_sum'+suffix] = [likelihood.chow_sum(l) for l in df['dist_likes'+suffix]]
     df['dist_chow_quantile'+suffix] = [likelihood.chow_quantile(l) for l in df['dist_likes'+suffix]]
 
-def get_cs_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix='', position_correct = True, skip_stopwords = True, collapse_prefix = True, tag = '', future_alpha = .9, sim_adjust = .3):
+def get_cs_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix='', position_correct = True, skip_stopwords = True, collapse_prefix = True, tag = '', future_alpha = .9, sim_adjust = .5):
     emb_dict = {}
     pos_dict = {}
     for logits in df['logit_outs' + suffix]:
@@ -118,12 +118,12 @@ def get_cs_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix='', posi
                     distance = np.where(future_tokens == t)[0][0] + 1
                     decay = future_alpha**distance
                     embed = emb_dict[t].squeeze()
-                    sim = misc.sim_cosine(chosen_emb, embed) - sim_adjust
+                    sim = misc.sim_cosine(chosen_emb, embed) * sim_adjust
                     sims.append(((1-decay)*sim + decay))
                 else:
                     imp_offset = text.get_token_importance(pos_dict[t])
                     embed = emb_dict[t].squeeze()
-                    sim = misc.sim_cosine(chosen_emb, embed) - sim_adjust
+                    sim = misc.sim_cosine(chosen_emb, embed) * sim_adjust
                     sims.append((1-imp_offset)*sim + imp_offset)
 
             w_sims = np.array([s*p for s, p in zip(sims, probs)])
@@ -136,11 +136,12 @@ def get_cs_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix='', posi
         dist_likes = np.array(dist_likes)
         all_dist_likes.append(dist_likes)
     df[tag + '_cs_likes'+suffix] = all_dist_likes
+    df[tag + '_cs_log_chow_av'] = [likelihood.log_chow_av(l) for l in all_dist_likes]
     df[tag + '_cs_chow_av'+suffix] = [likelihood.chow_av(l) for l in df[tag + '_cs_likes'+suffix]]
     df[tag + '_cs_chow_sum'+suffix] = [likelihood.chow_sum(l) for l in df[tag + '_cs_likes'+suffix]]
 
 
-def get_cs_semantic_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix='', position_correct = True, skip_stopwords = True, collapse_prefix = True, tag = '', future_alpha = .9, sim_adjust = .3):
+def get_cs_semantic_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix='', position_correct = True, skip_stopwords = True, collapse_prefix = True, tag = '', future_alpha = .9, sim_adjust = .5):
     
     g = text.calculate_grammatical_direction(embedder, tokenizer(text.GRAMMATICAL_TOKENS)['input_ids'])
 
@@ -184,12 +185,12 @@ def get_cs_semantic_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix
                     distance = np.where(future_tokens == t)[0][0] + 1
                     decay = future_alpha**distance
                     embed = emb_dict[t].squeeze()
-                    sim = misc.sim_cosine(chosen_emb, embed)  - sim_adjust
+                    sim = misc.sim_cosine(chosen_emb, embed)  * sim_adjust
                     sims.append(((1-decay)*sim + decay))
                 else:
                     imp_offset = text.get_token_importance(pos_dict[t])
                     embed = emb_dict[t].squeeze()
-                    sim = misc.sim_cosine(chosen_emb, embed) - sim_adjust
+                    sim = misc.sim_cosine(chosen_emb, embed) * sim_adjust
                     sims.append((1-imp_offset)*sim + imp_offset)
 
             w_sims = np.array([s*p for s, p in zip(sims, probs)])
@@ -202,6 +203,7 @@ def get_cs_semantic_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix
         dist_likes = np.array(dist_likes)
         all_dist_likes.append(dist_likes)
     df[tag + '_cs_likes'+suffix] = all_dist_likes
+    df[tag + '_cs_log_chow_av'] = [likelihood.log_chow_av(l) for l in all_dist_likes]
     df[tag + '_cs_chow_av'+suffix] = [likelihood.chow_av(l) for l in df[tag + '_cs_likes'+suffix]]
     df[tag + '_cs_chow_sum'+suffix] = [likelihood.chow_sum(l) for l in df[tag + '_cs_likes'+suffix]]
 

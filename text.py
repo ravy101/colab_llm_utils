@@ -33,6 +33,10 @@ def get_pos(token):
         result = 'N/A'
     return result
 
+def remove_prompt(question, separator = ":"):
+    _, _, content = question.partition(separator)
+    return content
+
 
 GRAMMATICAL_TOKENS: List[str] = [
     "the", "a", "an", "is", "are", "was", "were", "be", "being", "been", 
