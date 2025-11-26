@@ -4,6 +4,23 @@ from . import text
 from . import misc
 import numpy as np
 
+
+def get_embedding_pos_dicts(df, embedder, tokenizer, suffix = ''):
+    emb_dict = {}
+    pos_dict = {}
+    for logits in df['logit_outs' + suffix]:
+        for l in logits:
+            for k, v in l.items():
+                if k not in emb_dict:
+                    emb_dict[k] = embedder.get_token_embedding(k)
+                    pos_dict[k] = text.get_pos(tokenizer.decode(k))
+    for token_outs in df['token_outs' + suffix]:
+        for token in token_outs:
+            if token.item() not in emb_dict:
+                emb_dict[token.item()] = embedder.get_token_embedding(token.item())
+                pos_dict[token.item()] = text.get_pos(tokenizer.decode(token.item()))
+    return emb_dict, pos_dict
+
 # it adjusts likelihoods based on the mean likelihood of a token (but only in the top 10)
 def get_adj_likes(df):
     big_dict = {}
@@ -77,20 +94,7 @@ def get_emb_likes(df, embedder, suffix=''):
     df['dist_chow_sum'+suffix] = [likelihood.chow_sum(l) for l in df['dist_likes'+suffix]]
     df['dist_chow_quantile'+suffix] = [likelihood.chow_quantile(l) for l in df['dist_likes'+suffix]]
 
-def get_cs_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix='', position_correct = True, skip_stopwords = True, collapse_prefix = True, tag = '', future_alpha = .9, sim_adjust = .5):
-    emb_dict = {}
-    pos_dict = {}
-    for logits in df['logit_outs' + suffix]:
-        for l in logits:
-            for k, v in l.items():
-                if k not in emb_dict:
-                    emb_dict[k] = embedder.get_token_embedding(k)
-                    pos_dict[k] = text.get_pos(tokenizer.decode(k))
-    for token_outs in df['token_outs' + suffix]:
-        for token in token_outs:
-            if token.item() not in emb_dict:
-                emb_dict[token.item()] = embedder.get_token_embedding(token.item())
-                pos_dict[token.item()] = text.get_pos(tokenizer.decode(token.item()))
+def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], suffix='', position_correct = True, skip_stopwords = True, collapse_prefix = True, tag = '', future_alpha = .9, sim_adjust = .5):
     all_dist_likes = []
     #for each response
     for logits, token_outs in zip(df['logit_outs' + suffix], df['token_outs' + suffix]):
@@ -121,10 +125,9 @@ def get_cs_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix='', posi
                     sim = misc.sim_cosine(chosen_emb, embed) * sim_adjust
                     sims.append(((1-decay)*sim + decay))
                 else:
-                    imp_offset = text.get_token_importance(pos_dict[t])
                     embed = emb_dict[t].squeeze()
                     sim = misc.sim_cosine(chosen_emb, embed) * sim_adjust
-                    sims.append((1-imp_offset)*sim + imp_offset)
+                    sims.append(sim)
 
             w_sims = np.array([s*p for s, p in zip(sims, probs)])
             w_sum = w_sims.sum(axis=0)
