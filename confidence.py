@@ -135,6 +135,10 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], suffix='', posi
             probs = likelihood.softmax_from_loglik(list(l.values()))
             sims = []
             for t in tokens:
+                if t == output_tokens[i].item():
+                    #this is the output token
+                    sims.append(1)
+                    continue
 
                 if collapse_prefix and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
                     sims.append(1)
@@ -201,7 +205,11 @@ def get_cs_semantic_emb_likes(df, embedder, tokenizer, stopword_ids = [], suffix
             probs = likelihood.softmax_from_loglik(list(l.values()))
             sims = []
             for t in tokens:
-
+                if t == output_tokens[i].item():
+                    #this is the output token
+                    sims.append(1)
+                    continue
+        
                 if collapse_prefix and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
                     sims.append(1)
                 elif position_correct and t in future_tokens:
