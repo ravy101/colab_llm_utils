@@ -31,13 +31,14 @@ def get_embedding_dict_glove(df, glove, tokenizer, suffix = '', glove_dim = 100)
                         emb_dict[k] = glove[tokenizer.decode(k).lower()]
                     except:
                         emb_dict[k] = np.zeros(glove_dim)
+
     for token_outs in df['token_outs' + suffix]:
         for token in token_outs:
             if token.item() not in emb_dict:
                 try:
-                    emb_dict[k] = glove[tokenizer.decode(k).lower()]
+                    emb_dict[token.item()] = glove[tokenizer.decode(token.item()).lower()]
                 except:
-                    emb_dict[k] = np.zeros(glove_dim)
+                    emb_dict[token.item()] = np.zeros(glove_dim)
     return emb_dict
 
 
