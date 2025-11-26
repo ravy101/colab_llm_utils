@@ -21,6 +21,26 @@ def get_embedding_pos_dicts(df, embedder, tokenizer, suffix = ''):
                 pos_dict[token.item()] = text.get_pos(tokenizer.decode(token.item()))
     return emb_dict, pos_dict
 
+def get_embedding_dict_glove(df, glove, tokenizer, suffix = '', glove_dim = 100):
+    emb_dict = {}
+    for logits in df['logit_outs' + suffix]:
+        for l in logits:
+            for k, v in l.items():
+                if k not in emb_dict:
+                    try:
+                        emb_dict[k] = glove[tokenizer.decode(k).lower()]
+                    except:
+                        emb_dict[k] = np.zeroes(glove_dim)
+    for token_outs in df['token_outs' + suffix]:
+        for token in token_outs:
+            if token.item() not in emb_dict:
+                try:
+                    emb_dict[k] = glove[tokenizer.decode(k).lower()]
+                except:
+                    emb_dict[k] = np.zeroes(glove_dim)
+    return emb_dict
+
+
 # it adjusts likelihoods based on the mean likelihood of a token (but only in the top 10)
 def get_adj_likes(df):
     big_dict = {}
