@@ -39,6 +39,15 @@ def get_glove():
     # 5. List available files
     print("\nFiles stored in your Drive GloVe directory:")
     print(os.listdir(glove_drive_dir))  
+    
+    embeddings = {}
+    with open(os.path.join(glove_drive_dir, "glove.6B.100d.txt"), "r", encoding="utf8") as f:
+        for line in f:
+            parts = line.split()
+            word = parts[0]
+            vec = np.asarray(parts[1:], dtype="float32")
+            embeddings[word] = vec
+    return embeddings
 
 
 def get_fasttext():
@@ -84,5 +93,5 @@ def get_fasttext():
     data = {}
     for line in fin:
         tokens = line.rstrip().split(' ')
-        data[tokens[0]] = np.array(list(map(float, tokens[1:])))
+        data[tokens[0]] = np.array(list(map(float, tokens[1:])), dtype = np.float32)
     return data
