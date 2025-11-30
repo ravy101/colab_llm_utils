@@ -2,6 +2,7 @@ import os
 import io
 import zipfile
 import requests
+import numpy as np
 
 def get_glove():
     # 2. Set destination folder in Drive
@@ -83,5 +84,5 @@ def get_fasttext():
     data = {}
     for line in fin:
         tokens = line.rstrip().split(' ')
-        data[tokens[0]] = map(float, tokens[1:])
+        data[tokens[0]] = np.array(list(map(float, tokens[1:])))
     return data
