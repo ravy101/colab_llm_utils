@@ -23,22 +23,31 @@ def get_embedding_pos_dicts(df, embedder, tokenizer, suffix = ''):
 
 def get_embedding_dict_from_pretrained(df, base_emb_dict, tokenizer, suffix = '', dim = 100):
     emb_dict = {}
+    zeros_count = 0
+    embed_count = 0
+    
     for logits in df['logit_outs' + suffix]:
         for l in logits:
             for k, v in l.items():
                 if k not in emb_dict:
                     try:
                         emb_dict[k] = base_emb_dict[tokenizer.decode(k).lower()]
+                        embed_count += 1
                     except:
                         emb_dict[k] = np.zeros(dim)
+                        zeros_count += 1
 
     for token_outs in df['token_outs' + suffix]:
         for token in token_outs:
             if token.item() not in emb_dict:
                 try:
                     emb_dict[token.item()] = base_emb_dict[tokenizer.decode(token.item()).lower()]
+                    embed_count += 1
                 except:
                     emb_dict[token.item()] = np.zeros(dim)
+                    zeros_count += 1
+
+    print(f"tokens mapped to embeddings with {embed_count} successful vectors and {zeros_count} zeros.")
     return emb_dict
 
 
