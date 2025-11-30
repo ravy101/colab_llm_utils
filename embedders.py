@@ -78,7 +78,7 @@ def get_fasttext():
     print(os.listdir(drive_dir))  
     
     fname = "wiki-news-300d-1M-subword.vec"
-    fin = io.open(os.path.join(zip_path, fname), 'r', encoding='utf-8', newline='\n', errors='ignore')
+    fin = io.open(os.path.join(drive_dir, fname), 'r', encoding='utf-8', newline='\n', errors='ignore')
     n, d = map(int, fin.readline().split())
     data = {}
     for line in fin:
