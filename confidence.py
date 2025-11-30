@@ -21,24 +21,24 @@ def get_embedding_pos_dicts(df, embedder, tokenizer, suffix = ''):
                 pos_dict[token.item()] = text.get_pos(tokenizer.decode(token.item()))
     return emb_dict, pos_dict
 
-def get_embedding_dict_glove(df, glove, tokenizer, suffix = '', glove_dim = 100):
+def get_embedding_dict_from_pretrained(df, base_emb_dict, tokenizer, suffix = '', dim = 100):
     emb_dict = {}
     for logits in df['logit_outs' + suffix]:
         for l in logits:
             for k, v in l.items():
                 if k not in emb_dict:
                     try:
-                        emb_dict[k] = glove[tokenizer.decode(k).lower()]
+                        emb_dict[k] = base_emb_dict[tokenizer.decode(k).lower()]
                     except:
-                        emb_dict[k] = np.zeros(glove_dim)
+                        emb_dict[k] = np.zeros(dim)
 
     for token_outs in df['token_outs' + suffix]:
         for token in token_outs:
             if token.item() not in emb_dict:
                 try:
-                    emb_dict[token.item()] = glove[tokenizer.decode(token.item()).lower()]
+                    emb_dict[token.item()] = base_emb_dict[tokenizer.decode(token.item()).lower()]
                 except:
-                    emb_dict[token.item()] = np.zeros(glove_dim)
+                    emb_dict[token.item()] = np.zeros(dim)
     return emb_dict
 
 
