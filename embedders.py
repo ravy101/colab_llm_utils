@@ -49,7 +49,7 @@ def get_fasttext():
 
     # 3. Download only if not already stored in Drive
     if not os.path.exists(zip_path):
-        print("Downloading fasttext embeddings (glove.6B.zip)...")
+        print("Downloading fasttext embeddings ...")
         url = "https://dl.fbaipublicfiles.com/fasttext/vectors-english/wiki-news-300d-1M-subword.vec.zip"
         r = requests.get(url, stream=True)
 
@@ -59,13 +59,13 @@ def get_fasttext():
                     f.write(chunk)
         print("Download complete.")
     else:
-        print("GloVe zip already exists in Drive. Skipping download.")
+        print("Zip already exists in Drive. Skipping download.")
 
     # 4. Extract only if not already extracted
     extract_flag = not any(fname.startswith("wiki") and not fname.endswith("zip") for fname in os.listdir(drive_dir))
 
     if extract_flag:
-        print("Extracting GloVe files...")
+        print("Extracting files...")
         with zipfile.ZipFile(zip_path, "r") as z:
             z.extractall(drive_dir)
         print("Extraction complete.")
@@ -78,7 +78,7 @@ def get_fasttext():
     print(os.listdir(drive_dir))  
     
     fname = "wiki-news-300d-1M-subword.vec"
-    fin = io.open(fname, 'r', encoding='utf-8', newline='\n', errors='ignore')
+    fin = io.open(os.path.join(zip_path, fname), 'r', encoding='utf-8', newline='\n', errors='ignore')
     n, d = map(int, fin.readline().split())
     data = {}
     for line in fin:
