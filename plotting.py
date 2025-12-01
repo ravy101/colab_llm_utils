@@ -145,7 +145,7 @@ def calibration_plots3(df, correct_col, columns, bins= 10, fixed_lim = True, plo
     ax.set_xticks(ticks =  range(len(df_calib[conf_column+'_mean'])),labels = [f"{100*b:2.0f}%" for b in bins[:-1]], rotation=90)
 
 
-def calibration_plot(df, correct_col, conf_column, bins= 10, fixed_lim = True, plot_title = " ", header_override = ['Max Probability', 'Other']):
+def calibration_plot(df, correct_col, conf_column, bins= 10, fixed_lim = True, plot_title = " ", invert = False, header_override = ['Max Probability', 'Other']):
     i = bins+1
     if fixed_lim:
         bmin = 0
@@ -153,8 +153,16 @@ def calibration_plot(df, correct_col, conf_column, bins= 10, fixed_lim = True, p
     else:
         bmin = df[conf_column].min()
         bmax = df[conf_column].max()
+
+    if invert:
+        df["plot_col"] = 1 - df[conf_column]
+    else:
+        df["plot_col"] = df[conf_column]
+    
+    conf_column = "plot_col"
+
     bins = np.linspace(bmin -.001, bmax +.001, i)
-    df['pred_bin'] = pd.cut(df[conf_column], bins, labels=range(0,i-1, 1))
+    df['pred_bin'] = pd.cut(df["plot_col"], bins, labels=range(0,i-1, 1))
     df_calib = df[[correct_col, conf_column, 'pred_bin']].groupby('pred_bin').agg({correct_col: ['mean', 'count'], conf_column: ['mean']})
     df_calib.columns = ["_".join(a) for a in df_calib.columns.to_flat_index()]
     df_calib.reset_index(inplace=True)
@@ -163,19 +171,19 @@ def calibration_plot(df, correct_col, conf_column, bins= 10, fixed_lim = True, p
     df_calib.sort_values("pred_bin", inplace=True, ascending=True)
     df_calib.reset_index(drop=True, inplace=True)
     df_calib.fillna(value = 0, inplace = True)
-    f, axes = plt.subplots(2,1, figsize=(10,5))
-    ax = axes[0,0]
+    f, axes = plt.subplots(2, figsize=(5,10))
+    ax = axes[1]
     sns.barplot(data=df_calib.reset_index(drop=True), x='pred_bin', y= 'proportion', ax=ax)
     ax.set_ylabel("Samples (%)")
     ax.set_xlabel("Confidence")
     ax.set_title(header_override[0])
     ax.set_xticks(ticks =  range(len(df_calib[conf_column+'_mean'])),labels = [f"{100*b:2.0f}%" for b in bins[:-1]], rotation=90)
     ax.set_ylim((0,.5))
-    ax= axes[1,0]
+    ax= axes[0]
     sns.barplot(data=df_calib.reset_index(drop=True), x='pred_bin', y=correct_col + '_mean', ax=ax, hue=2, legend=None)
     ax.plot([0,i-2],[0, 1], c='teal',linestyle='dashed' )
     plt.title(plot_title)
     ax.set_xlabel("Confidence")
     ax.set_ylabel("Accuracy")
     ax.set_xticks(ticks =  range(len(df_calib[conf_column+'_mean'])),labels = [f"{100*b:2.0f}%" for b in bins[:-1]], rotation=90)
-    
+
