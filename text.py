@@ -43,6 +43,8 @@ def is_new_word(tokenizer, token_id):
     Determines if a token starts a new word by checking for space prefixes.
     Works for Llama 2 (SentencePiece) and Llama 3 (Byte-Level BPE).
     """
+    if not type(token_id) == list:
+        token_id = [token_id] 
     # Get the raw vocabulary string for the token
     token_str = tokenizer.convert_ids_to_tokens(token_id)
     
