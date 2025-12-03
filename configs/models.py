@@ -63,3 +63,16 @@ t5_xl = {"model_name": "google/flan-t5-xl",
            "hf_model_func": AutoModelForSeq2SeqLM,
            "bnb_config": None,
            "block_limit": None}
+
+llama3_8b_chat = {"model_name": "meta-llama/Llama-3.1-8B-Instruct",
+                 "hf_model_func": AutoModelForCausalLM,
+                 "bnb_config": single_quant_cfg,
+                 #"bnb_config": None,
+                 "block_limit": None
+                 }
+
+llama3_70b_chat = {"model_name": "meta-llama/Llama-3.1-70B-Instruct",
+                 "hf_model_func": AutoModelForCausalLM,
+                 "bnb_config": single_quant_cfg,
+                 "block_limit": None
+                 }
