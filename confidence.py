@@ -137,7 +137,7 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
             if skip_stopwords and output_tokens[i].item() in stopword_ids:
                 continue
 
-            if skip_partwords and not text.is_new_word(tokenizer, output_tokens[i].item()):
+            if skip_partwords and i > 0 and not text.is_new_word(tokenizer, output_tokens[i].item()):
                 continue
 
             chosen_emb = emb_dict[output_tokens[i].item()].squeeze()
