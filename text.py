@@ -38,6 +38,32 @@ def remove_prompt(question, separator = ":"):
     return content
 
 
+def is_new_word(tokenizer, token_id):
+    """
+    Determines if a token starts a new word by checking for space prefixes.
+    Works for Llama 2 (SentencePiece) and Llama 3 (Byte-Level BPE).
+    """
+    # Get the raw vocabulary string for the token
+    token_str = tokenizer.convert_ids_to_tokens(token_id)
+    
+    if not token_str:
+        return False
+
+    # Llama 2 / SentencePiece Style (Lower One Eighth Block)
+    if token_str.startswith(" "): 
+        return True
+        
+    # Llama 3 / GPT-2 Style (Byte-Level BPE mapped to unicode)
+    # Ġ (U+0120) is the standard mapping for space in HF's BPE implementation
+    if token_str.startswith("Ġ"):
+        return True
+        
+    # Raw Tiktoken/Llama 3 (if using raw vocab without HF mapping)
+    if token_str.startswith(" "):
+        return True
+
+    return False
+
 GRAMMATICAL_TOKENS: List[str] = [
     "the", "a", "an", "is", "are", "was", "were", "be", "being", "been", 
     "and", "or", "but", "for", "of", "in", "to", "with", "on", "at", 
