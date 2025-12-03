@@ -48,9 +48,10 @@ def is_new_word(tokenizer, token_id):
     
     if not token_str:
         return False
-
+    
+    token_str ="".join(token_str)
     # Llama 2 / SentencePiece Style (Lower One Eighth Block)
-    if token_str.startswith(" "): 
+    if token_str.startswith(" ") or token_str.startswith("▁"): 
         return True
         
     # Llama 3 / GPT-2 Style (Byte-Level BPE mapped to unicode)
