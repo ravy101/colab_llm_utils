@@ -124,7 +124,11 @@ def get_emb_likes(df, embedder, suffix=''):
     df['dist_chow_sum'+suffix] = [likelihood.chow_sum(l) for l in df['dist_likes'+suffix]]
     df['dist_chow_quantile'+suffix] = [likelihood.chow_quantile(l) for l in df['dist_likes'+suffix]]
 
-def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, skip_partwords=True, collapse_prefix = True, tag = '', future_alpha = .9, sim_adjust = .5):
+def poly_decay(distance, limit):
+    return max(0, 1 - (distance/limit)**2)
+
+def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, 
+                     skip_partwords=True, collapse_prefix = True, tag = '', distance_limit = 5, sim_adjust = .5):
     all_dist_likes = []
     #for each response
     for logits, token_outs in zip(df['logit_outs' + logit_suffix], df['token_outs' + token_suffix]):
@@ -157,7 +161,7 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
                     sims.append(1)
                 elif position_correct and t in future_tokens:
                     distance = np.where(future_tokens == t)[0][0] + 1
-                    decay = future_alpha**distance
+                    decay = poly_decay(distance, distance_limit)
                     embed = emb_dict[t].squeeze()
                     sim = misc.sim_cosine(chosen_emb, embed) * sim_adjust
                     sims.append(((1-decay)*sim + decay))
