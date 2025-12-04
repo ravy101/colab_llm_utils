@@ -67,6 +67,15 @@ def is_new_word(tokenizer, token_id):
 
     return False
 
+def get_word_parts(tokenizer, token_ids):
+    new_words = []
+    for i in range(len(token_ids)):
+        if i == 0:
+            new_words.append(True)
+        else:
+            new_words.append(is_new_word(tokenizer, token_ids[i]))
+    return new_words
+
 GRAMMATICAL_TOKENS: List[str] = [
     "the", "a", "an", "is", "are", "was", "were", "be", "being", "been", 
     "and", "or", "but", "for", "of", "in", "to", "with", "on", "at", 

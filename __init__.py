@@ -19,7 +19,9 @@ __all__ = ["configs",
            "modelling",
            "plotting",
            "scorers",
-           "text"]
+           "text",
+           "metric",
+           "embedders"]
 
 __version__ = "0.0.7"
 

@@ -23,3 +23,6 @@ def sim_cosine(arr1, arr2):
     else:
         result = dprod / (np.linalg.norm(arr1) * np.linalg.norm(arr2))
     return result
+
+
+

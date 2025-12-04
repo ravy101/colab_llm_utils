@@ -16,6 +16,9 @@ def doc_to_text_wmt_de(item, from_lang = 'de', to_lang = 'en'):
 def doc_to_text_qa(item):
   return f"Provide a short answer without explanation.\n Question: {item['question']}\nShort Answer: "
 
+def doc_to_text_qa_conf(item):
+  return f"Provide a short answer and a percentage reflecting how confident you are it is correct without any explanation.\n Question: {item['question']}\nShort Answer: "
+
 def doc_to_answer_qa(item):
   return item['answer']
 
