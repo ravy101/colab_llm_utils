@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.metrics import r2_score, mean_squared_error, roc_auc_score, brier_score_loss
-from relplot.metrics import smECE_slow as smece
+from relplot.metrics import smECE as smece
 
 def ece(y_true: np.array, y_pred: np.array, n_bins: int = 10) -> float:
     """
