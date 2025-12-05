@@ -93,7 +93,7 @@ def split_conf_ans(response):
         text = response
     text_list = text.split(')')
     conf_text = text_list[0]
-    ans_text = text[len(conf_text):]
+    ans_text = text[len(conf_text)+2:]
     if len(text_list) > 1:
         conf = extract_number(conf_text)
     else:
