@@ -68,6 +68,7 @@ def is_new_word(tokenizer, token_id):
 
     return False
 
+
 def extract_number(text):
     """
     Finds the first integer in a string.
@@ -82,8 +83,22 @@ def extract_number(text):
     if match:
         result = np.float(match.group())
     else:
-        result = 0
+        result = 0.0
     return result
+
+def split_conf_ans(response):
+  if type(response) == list:
+    text = response[0]
+  else:
+    text = response
+  text_list = response.split(')')
+  conf_text = text_list[0]
+  ans_text = response[len(conf_text):]
+  if len(text_list) > 1:
+    conf = extract_number(conf_text)
+  return (conf, [ans_text])
+
+
 
 def get_word_parts(tokenizer, token_ids):
     new_words = []
