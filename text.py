@@ -96,6 +96,8 @@ def split_conf_ans(response):
     ans_text = text[len(conf_text):]
     if len(text_list) > 1:
         conf = extract_number(conf_text)
+    else:
+        conf = 0.0
     return (conf, [ans_text])
 
 
