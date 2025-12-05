@@ -81,7 +81,7 @@ def extract_number(text):
     match = re.search(r'\d+(\.\d+)?', text)
     
     if match:
-        result = np.float(match.group())
+        result = np.float32(match.group())
     else:
         result = 0.0
     return result
