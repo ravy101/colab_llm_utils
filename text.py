@@ -87,16 +87,16 @@ def extract_number(text):
     return result
 
 def split_conf_ans(response):
-  if type(response) == list:
-    text = response[0]
-  else:
-    text = response
-  text_list = response.split(')')
-  conf_text = text_list[0]
-  ans_text = response[len(conf_text):]
-  if len(text_list) > 1:
-    conf = extract_number(conf_text)
-  return (conf, [ans_text])
+    if type(response) == list:
+        text = response[0]
+    else:
+        text = response
+    text_list = text.split(')')
+    conf_text = text_list[0]
+    ans_text = text[len(conf_text):]
+    if len(text_list) > 1:
+        conf = extract_number(conf_text)
+    return (conf, [ans_text])
 
 
 
