@@ -1,6 +1,7 @@
 import spacy
 import math
 import numpy as np
+import re
 from numpy.linalg import norm
 from typing import List, Dict, Union
 
@@ -66,6 +67,23 @@ def is_new_word(tokenizer, token_id):
         return True
 
     return False
+
+def extract_number(text):
+    """
+    Finds the first integer in a string.
+    "80%" -> "80"
+    "(80)" -> "80"
+    "Score: 80" -> "80"
+    """
+        
+    # \d+ matches one or more digits
+    match = re.search(r'\d+(\.\d+)?', text)
+    
+    if match:
+        result = np.float(match.group())
+    else:
+        result = 0
+    return result
 
 def get_word_parts(tokenizer, token_ids):
     new_words = []
