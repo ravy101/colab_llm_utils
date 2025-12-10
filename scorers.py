@@ -5,6 +5,8 @@ import evaluate
 MAX_ALIASES = 8
 _bem_tokenizer = None 
 _bem_model = None
+_ck_tokenizer = None
+_ck_model =  None
 _meteor = None
 _bleurt = None
 _rouge = None
@@ -42,9 +44,19 @@ def get_comet():
     global _comet
     if _comet is None:
         print("Loading COMET metric...")
-        _comet = evaluate.load("comet", config_name="wmt21-comet-da")
+        _comet = evaluate.load("comet", config_name="wmt22-cometkiwi-da")
     return _comet
 
+def _initialize_ck_model():
+    """Initialize the cometkiwi model and tokenizer if not already loaded."""
+    global _ck_model, _ck_tokenizer
+    if _ck_model is None or _ck_tokenizer is None:
+        from transformers import AutoTokenizer, AutoModel
+
+        _ck_tokenizer = AutoTokenizer.from_pretrained("vince62s/wmt22-cometkiwi-da-roberta-large", trust_remote_code=True)
+        _ck_model = AutoModel.from_pretrained("vince62s/wmt22-cometkiwi-da-roberta-large", trust_remote_code=True)
+
+    return _ck_model, _ck_tokenizer
 
 
 def _initialize_model():
@@ -67,6 +79,14 @@ def get_bem_model():
 def get_bem_tokenizer():
     _, tokenizer = _initialize_model()
     return tokenizer
+
+def get_ck_model():
+   ck_model, _ = _initialize_ck_model()
+   return ck_model
+
+def get_ck_tokenizer():
+   _, _ck_tokenizer = _initialize_ck_model()
+   return _ck_tokenizer
 
 def normalize_answer(s):
     """Lower text and remove punctuation, articles, and extra whitespace."""
@@ -105,7 +125,16 @@ def bem_score(prediction, ground_truth, question, binary_out = False):
     prediction = F.softmax(out.logits, dim=-1).tolist()[0][1]
   return prediction
 
-
+def ck_score(source, translation, binary_out = False):
+  ck_model, ck_tokenizer = _initialize_ck_model()
+  text = f"{source}</s></s>{translation}"
+  inputs = ck_tokenizer(text, return_tensors='pt')
+  out = ck_model(**inputs)
+  if binary_out:
+    prediction = float(F.softmax(out.logits, dim=-1).argmax().item())
+  else:
+    prediction = out[0].item()
+  return prediction
 
 # BEST AGGREGATORS
 
