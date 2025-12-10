@@ -132,7 +132,6 @@ def best_bleurt(prediction, reference_aliases):
     if type(reference_aliases) == str:
       reference_aliases = [reference_aliases]
     for alias in reference_aliases[:MAX_ALIASES]:
-      print(f"computing bleurt {prediction} == {alias}")
       result = get_bleurt().compute(predictions=prediction, references=[alias])
       scores.append(result["scores"])
     return max(scores)
@@ -145,7 +144,6 @@ def best_comet(sources, prediction, reference_aliases):
       reference_aliases = [reference_aliases]
 
     for alias in reference_aliases[:MAX_ALIASES]:
-      print(f"computing comet {prediction} == {alias}")
       result = get_comet().compute(predictions=prediction, references=[alias], sources=[])
       scores.append(result["scores"])
     return max(scores)
@@ -160,7 +158,6 @@ def best_em(prediction, reference_aliases):
     if type(prediction) == list:
       prediction = prediction[0]
     for alias in reference_aliases[:MAX_ALIASES]:
-      print(f"computing em {prediction} == {alias}")
       result = exact_match(prediction, alias)
       scores.append(float(result))
     return max(scores)
@@ -173,7 +170,6 @@ def best_f1(prediction, reference_aliases):
     if type(prediction) == list:
       prediction = prediction[0]
     for alias in reference_aliases[:MAX_ALIASES]:
-      print(f"computing f1 {prediction} == {alias}")
       result = f1_score(prediction, alias)
       scores.append(result)
     return max(scores)
@@ -185,8 +181,8 @@ def best_bem(prediction, reference_aliases, question):
       reference_aliases = [reference_aliases]
     if type(prediction) == list:
       prediction = prediction[0]
+    print(f"computing bem {prediction} == {alias}")
     for alias in reference_aliases[:MAX_ALIASES]:
-      print(f"computing bem {prediction} == {alias}")
       result = bem_score(prediction, alias, question)
       scores.append(result)
     return max(scores)

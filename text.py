@@ -86,7 +86,7 @@ def extract_number(text):
         result = 0.0
     return result
 
-def split_conf_ans(response):
+def split_conf_ans(response, verbose = False):
     if type(response) == list:
         text = response[0]
     else:
@@ -100,6 +100,11 @@ def split_conf_ans(response):
     else:
         conf = 0.0
         ans_text = text
+
+    if verbose:
+        print(f"Original: {response}")
+        print(f"self confidence: {conf}")
+        print(f"remaining text: {ans_text}")
     return (conf, [ans_text])
 
 
