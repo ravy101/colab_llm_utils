@@ -78,7 +78,7 @@ def extract_number(text):
     """
         
     # \d+ matches one or more digits
-    match = re.search(r'(\d+)', text)
+    match = re.search(r'\d+)', text)
     
     if match:
         result = np.float32(match.group())
@@ -105,6 +105,7 @@ def split_conf_ans(response, verbose = False):
         print(f"Original: {response}")
         print(f"self confidence: {conf}")
         print(f"remaining text: {ans_text}")
+
     return (conf, [ans_text])
 
 

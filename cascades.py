@@ -41,3 +41,4 @@ def cascade_scored_samples(df, col, metric, ml_suffix='_13b'):
     return {"p_deferred": p_deferred, "n_deferred":n_deferred, "deferred_correct": deferred_correct, "deferred_acc":deferred_acc, "accs": accs, "gains":gains, "auc": np.trapezoid(accs, x= p_deferred),
             "auc_20": auc_20, "auc_40": auc_40, "accs_20": accs_20, "accs_40": accs_40, "p_del_20": p_del_20, "p_del_40": p_del_40}
 
+
