@@ -181,7 +181,7 @@ def best_bem(prediction, reference_aliases, question):
       reference_aliases = [reference_aliases]
     if type(prediction) == list:
       prediction = prediction[0]
-    print(f"computing bem {prediction} == {alias}")
+    print(f"computing bem {prediction} == {reference_aliases}")
     for alias in reference_aliases[:MAX_ALIASES]:
       result = bem_score(prediction, alias, question)
       scores.append(result)
