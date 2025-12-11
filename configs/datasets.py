@@ -25,6 +25,13 @@ def doc_to_answer_qa(item):
 def doc_to_text_sciq(item):
   return f"Provide a short answer without explanation.\n Question: {item['question']}\nShort Answer: "
 
+def p_true_text():
+  return (
+    "<|start_header_id|>user<|end_header_id|>\n\n"
+    "Is the answer above true? Answer with 'True' or 'False'.<|eot_id|>"
+    "<|start_header_id|>assistant<|end_header_id|>\n\n")  
+
+
 def doc_to_answer_sciq(item):
   return item['correct_answer']
 
