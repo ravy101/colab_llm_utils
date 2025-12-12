@@ -7,6 +7,17 @@ def norm_series(series, invert = False):
       normed = (1 - normed)
     return normed
 
+def clip_series(series, u_quantile = None, l_quantile = None):
+    new_series = series.copy()
+    if u_quantile:
+        uq = np.quantile(series, u_quantile)
+        new_series[new_series > u_quantile] = u_quantile
+    
+    if l_quantile:
+        lq = np.quantile(series, l_quantile)
+        new_series[new_series < l_quantile] = l_quantile
+    return new_series
+
 def cap_interp_curve(x, y, x_lim):
     int_y = np.interp(x_lim, x, y)
     x[-1] = x_lim
