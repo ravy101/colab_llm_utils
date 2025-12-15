@@ -23,7 +23,7 @@ def doc_to_answer_qa(item):
   return item['answer']
 
 def doc_to_text_sciq(item):
-  return f"Provide a short answer without explanation.\n Question: {item['question']}\nShort Answer:"
+  return f"Provide the answer without explanation in as few words as possible.\n Question: {item['question']}\nShort Answer:"
 
 def p_true_text():
   return (
