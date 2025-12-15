@@ -54,6 +54,7 @@ def get_embedding_dict_from_pretrained(df, base_emb_dict, tokenizer, suffix = ''
 # it adjusts likelihoods based on the mean likelihood of a token (but only in the top 10)
 def get_adj_likes(df):
     big_dict = {}
+    big_dict_lens = {}
     for logits in df['logit_outs']:
         for l in logits:
             for k, v in l.items():
@@ -61,11 +62,12 @@ def get_adj_likes(df):
                     continue
                 if k not in big_dict:
                     big_dict[k] = []
-                    big_dict[k].append(v)
+                big_dict[k].append(v)
                     #break
 
     # get mean likes
     for k, v in big_dict.items():
+        big_dict_lens[k] = len(v)
         big_dict[k] = np.array(v).mean()
 
     all_adj_likes = []
@@ -158,7 +160,8 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
                     sims.append(1)
                     continue
 
-                if collapse_prefix and token_new_word[i] and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
+                # and token_new_word[i]
+                if collapse_prefix and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
                     sims.append(1)
                 elif position_correct and t in future_tokens:
                     distance = np.where(future_tokens == t)[0][0] + 1

@@ -187,3 +187,15 @@ def calibration_plot(df, correct_col, conf_column, bins= 10, fixed_lim = True, p
     ax.set_ylabel("Accuracy")
     ax.set_xticks(ticks =  range(len(df_calib[conf_column+'_mean'])),labels = [f"{100*b:2.0f}%" for b in bins[:-1]], rotation=90)
 
+def heatmap_results(results):
+    df_res = pd.DataFrame.from_dict(results, orient='index')[['auc_20', 'auc_40', 'auc']].sort_values(by='auc', ascending=False)
+
+    df_norm = (df_res - df_res.min()) / (df_res.max() - df_res.min())
+
+    plt.figure(figsize=(8, 6))
+
+    sns.heatmap(data=df_norm, annot=df_res, cmap="rocket", fmt=".4f")
+
+    plt.title("Performance Heatmap (Normalized Colors per Column)")
+    plt.tight_layout()
+    plt.show()
