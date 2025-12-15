@@ -11,11 +11,11 @@ def clip_series(series, u_quantile = None, l_quantile = None):
     new_series = series.copy()
     if u_quantile:
         uq = np.quantile(series, u_quantile)
-        new_series[new_series > u_quantile] = u_quantile
+        new_series[new_series > u_quantile] = uq
     
     if l_quantile:
         lq = np.quantile(series, l_quantile)
-        new_series[new_series < l_quantile] = l_quantile
+        new_series[new_series < l_quantile] = lq
     return new_series
 
 def cap_interp_curve(x, y, x_lim):
