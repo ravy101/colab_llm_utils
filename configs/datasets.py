@@ -14,16 +14,16 @@ def doc_to_text_wmt_de(item, from_lang = 'de', to_lang = 'en'):
   return f"Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {item['translation'][from_lang]}\n "
 
 def doc_to_text_qa(item):
-  return f"Provide a short answer without explanation.\n Question: {item['question']}\nShort Answer: "
+  return f"Provide a short answer without explanation.\n Question: {item['question']}\nShort Answer:"
 
 def doc_to_text_qa_conf(item):
-  return f"Provide a short answer and a percentage reflecting how confident you are it is correct without any explanation.\n Question: {item['question']}\nShort Answer: "
+  return f"Provide a short answer and a percentage reflecting how confident you are it is correct without any explanation.\n Question: {item['question']}\nShort Answer:"
 
 def doc_to_answer_qa(item):
   return item['answer']
 
 def doc_to_text_sciq(item):
-  return f"Provide a short answer without explanation.\n Question: {item['question']}\nShort Answer: "
+  return f"Provide a short answer without explanation.\n Question: {item['question']}\nShort Answer:"
 
 def p_true_text():
   return (
