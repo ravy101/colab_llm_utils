@@ -38,7 +38,8 @@ def cascade_scored_samples(df, col, metric, ml_suffix='_13b'):
                 p_del_40, accs_40 = misc.cap_interp_curve(p_del_40, accs_40, .4)
                 auc_40 = np.trapezoid(accs_40, x= p_del_40)
 
-    return {"p_deferred": p_deferred, "n_deferred":n_deferred, "deferred_correct": deferred_correct, "deferred_acc":deferred_acc, "accs": accs, "gains":gains, "auc": np.trapezoid(accs, x= p_deferred),
-            "auc_20": auc_20, "auc_40": auc_40, "accs_20": accs_20, "accs_40": accs_40, "p_del_20": p_del_20, "p_del_40": p_del_40}
+    return {"p_deferred": p_deferred, "n_deferred":n_deferred, "deferred_correct": deferred_correct, "accepted_acc": accept_acc, "deferred_acc":deferred_acc, "accs": accs, "gains":gains, 
+            "auc": np.trapezoid(accs, x= p_deferred), "auc_20": auc_20, "auc_40": auc_40, "accs_20": accs_20, "accs_40": accs_40, 
+            "aurc": np.trapezoid(accept_acc, x = p_deferred), "p_del_20": p_del_20, "p_del_40": p_del_40}
 
 

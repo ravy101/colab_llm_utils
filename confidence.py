@@ -184,3 +184,68 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
     df[tag + '_cs_log_chow_av'] = [likelihood.log_chow_av(l) for l in all_dist_likes]
     df[tag + '_cs_chow_av'+token_suffix] = [likelihood.chow_av(l) for l in df[tag + '_cs_likes'+token_suffix]]
     df[tag + '_cs_chow_sum'+token_suffix] = [likelihood.chow_sum(l) for l in df[tag + '_cs_likes'+token_suffix]]
+
+
+def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, 
+                     adjust_partwords=True, collapse_prefix = True, tag = '', distance_limit = 5, sim_thresh = .75):
+    all_dist_likes = []
+    #for each response
+    for logits, token_outs in zip(df['logit_outs' + logit_suffix], df['token_outs' + token_suffix]):
+        #list of candidate likes
+        dist_likes = []
+        output_tokens = token_outs[-len(logits):]
+
+        token_new_word = text.get_word_parts(tokenizer, output_tokens)
+
+        #for each token in sequence
+        for i, l in enumerate(logits):
+            # embed for chosen token
+            if skip_stopwords and output_tokens[i].item() in stopword_ids:
+                continue
+
+
+            chosen_emb = emb_dict[output_tokens[i].item()].squeeze()
+            future_tokens = output_tokens[i+1:]
+
+            #lists of candidate tokens at position
+            tokens = list(l.keys())
+            probs = likelihood.softmax_from_loglik(list(l.values()))
+            sims = []
+            for t in tokens:
+                if t == output_tokens[i].item():
+                    #this is the output token
+                    sims.append(1)
+                    continue
+
+                if collapse_prefix and token_new_word[i] and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
+                    sims.append(1)
+                elif position_correct and t in future_tokens:
+                    distance = np.where(future_tokens == t)[0][0] + 1
+                    decay = poly_decay(distance, distance_limit)
+                    embed = emb_dict[t].squeeze()
+                    sim = misc.sim_cosine(chosen_emb, embed)
+                    if sim > sim_thresh:
+                        sims.append(max(sim, decay))
+                    else:
+                        sims.append(decay)
+                else:
+                    embed = emb_dict[t].squeeze()
+                    sim = misc.sim_cosine(chosen_emb, embed) 
+                    if sim > sim_thresh:
+                        sims.append(sim)
+                    else:
+                        sims.append(0)
+
+            w_sims = np.array([s*p for s, p in zip(sims, probs)])
+            w_sum = w_sims.sum(axis=0)
+            dist_likes.append(w_sum)
+
+        if len(dist_likes) == 0:
+            dist_likes.append(0)
+
+        dist_likes = np.array(dist_likes)
+        all_dist_likes.append(dist_likes)
+    df[tag + '_cs_likes'+token_suffix] = all_dist_likes
+    df[tag + '_cs_log_chow_av'] = [likelihood.log_chow_av(l) for l in all_dist_likes]
+    df[tag + '_cs_chow_av'+token_suffix] = [likelihood.chow_av(l) for l in df[tag + '_cs_likes'+token_suffix]]
+    df[tag + '_cs_chow_sum'+token_suffix] = [likelihood.chow_sum(l) for l in df[tag + '_cs_likes'+token_suffix]]
