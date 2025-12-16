@@ -189,8 +189,8 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
     df[tag + '_cs_chow_sum'+token_suffix] = [likelihood.chow_sum(l) for l in df[tag + '_cs_likes'+token_suffix]]
 
 
-def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, 
-                     adjust_partwords=True, collapse_prefix = True, tag = '', distance_limit = 5, sim_thresh = .75):
+def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, 
+                        skip_stopwords = True, collapse_prefix = True, tag = '', distance_limit = 5, sim_thresh = .75):
     all_dist_likes = []
     #for each response
     for logits, token_outs in zip(df['logit_outs' + logit_suffix], df['token_outs' + token_suffix]):
@@ -227,17 +227,16 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                     decay = poly_decay(distance, distance_limit)
                     embed = emb_dict[t].squeeze()
                     sim = misc.sim_cosine(chosen_emb, embed)
-                    if sim > sim_thresh:
-                        sims.append(max(sim, decay))
-                    else:
-                        sims.append(decay)
+                    if sim < sim_thresh:
+                        sim = 0
+                    sims.append(max(sim, decay))
+
                 else:
                     embed = emb_dict[t].squeeze()
                     sim = misc.sim_cosine(chosen_emb, embed) 
-                    if sim > sim_thresh:
-                        sims.append(sim)
-                    else:
-                        sims.append(0)
+                    if sim < sim_thresh:
+                        sim = 0
+                    sims.append(sim)
 
             w_sims = np.array([s*p for s, p in zip(sims, probs)])
             w_sum = w_sims.sum(axis=0)
