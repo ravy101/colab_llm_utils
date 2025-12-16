@@ -228,7 +228,8 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                     embed = emb_dict[t].squeeze()
                     sim = misc.sim_cosine(chosen_emb, embed) 
                     if sim < sim_thresh:
-                        sim = 0
+                        print(f"making sim 0 from {sim}")
+                        sim = 0 
                     else:
                         print("doing something non 0 sim")
                     sims.append(max(sim, decay))
@@ -236,6 +237,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                     embed = emb_dict[t].squeeze()
                     sim = misc.sim_cosine(chosen_emb, embed)
                     if sim < sim_thresh:
+                        print(f"making sim 0 from {sim}")
                         sim = 0 
                     else:
                         print("doing something non 0 sim")
