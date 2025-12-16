@@ -189,8 +189,8 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
     df[tag + '_cs_chow_sum'+token_suffix] = [likelihood.chow_sum(l) for l in df[tag + '_cs_likes'+token_suffix]]
 
 
-def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, 
-                        skip_stopwords = True, collapse_prefix = True, tag = '', distance_limit = 5, sim_thresh = .75):
+def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, 
+                        collapse_prefix = True, tag = '', distance_limit = 5, sim_thresh = .5):
     all_dist_likes = []
     #for each response
     for logits, token_outs in zip(df['logit_outs' + logit_suffix], df['token_outs' + token_suffix]):
@@ -220,22 +220,25 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                     sims.append(1)
                     continue
 
-                if collapse_prefix and token_new_word[i] and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
+                if collapse_prefix and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
                     sims.append(1)
                 elif position_correct and t in future_tokens:
                     distance = np.where(future_tokens == t)[0][0] + 1
                     decay = poly_decay(distance, distance_limit)
                     embed = emb_dict[t].squeeze()
-                    sim = misc.sim_cosine(chosen_emb, embed)
-                    if sim < sim_thresh:
-                        sim = 0
-                    sims.append(max(sim, decay))
-
-                else:
-                    embed = emb_dict[t].squeeze()
                     sim = misc.sim_cosine(chosen_emb, embed) 
                     if sim < sim_thresh:
                         sim = 0
+                    else:
+                        print("doing something non 0 sim")
+                    sims.append(max(sim, decay))
+                else:
+                    embed = emb_dict[t].squeeze()
+                    sim = misc.sim_cosine(chosen_emb, embed)
+                    if sim < sim_thresh:
+                        sim = 0 
+                    else:
+                        print("doing something non 0 sim")
                     sims.append(sim)
 
             w_sims = np.array([s*p for s, p in zip(sims, probs)])
