@@ -190,7 +190,7 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
 
 
 def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, 
-                        collapse_prefix = True, tag = '', distance_limit = 5, sim_thresh = .5):
+                        collapse_prefix = True, tag = '', distance_limit = 5, sim_thresh = .7):
     all_dist_likes = []
     #for each response
     for logits, token_outs in zip(df['logit_outs' + logit_suffix], df['token_outs' + token_suffix]):
@@ -228,19 +228,13 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                     embed = emb_dict[t].squeeze()
                     sim = misc.sim_cosine(chosen_emb, embed) 
                     if sim < sim_thresh:
-                        print(f"making sim 0 from {sim}")
                         sim = 0 
-                    else:
-                        print("doing something non 0 sim")
                     sims.append(max(sim, decay))
                 else:
                     embed = emb_dict[t].squeeze()
                     sim = misc.sim_cosine(chosen_emb, embed)
                     if sim < sim_thresh:
-                        print(f"making sim 0 from {sim}")
                         sim = 0 
-                    else:
-                        print("doing something non 0 sim")
                     sims.append(sim)
 
             w_sims = np.array([s*p for s, p in zip(sims, probs)])
