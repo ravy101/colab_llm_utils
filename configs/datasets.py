@@ -16,6 +16,14 @@ def doc_to_text_wmt_de(item, from_lang = 'de', to_lang = 'en'):
 def doc_to_text_qa(item):
   return f"Provide a short answer without explanation.\n Question: {item['question']}\nShort Answer:"
 
+def doc_to_text_nq(item):
+  text = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+  Please provide the specific answer to the following question. Do not include reasoning, explanation or conversational filler. Output only the required information as concisely as possible.<|eot_id|><|start_header_id|>user<|end_header_id|>
+  Question: {item['question']}?
+Answer:<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
+  return text
+
+
 def doc_to_text_qa_conf(item):
   return f"Provide a short answer and a percentage reflecting how confident you are it is correct without any explanation.\n Question: {item['question']}\nShort Answer:"
 
@@ -77,7 +85,7 @@ nqopen = {"clean_name": "NQOpen",
         "subset": "train",
         "task_type": "qa",
         "dict_ans": False,
-        "doc_to_text": doc_to_text_qa,
+        "doc_to_text": doc_to_text_nq,
         "doc_to_ans": doc_to_answer_qa}
 
 truthfulqa = {"clean_name": "TruthfulQA",
