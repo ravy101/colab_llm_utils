@@ -1,13 +1,10 @@
 import torch
 
 class tokenizer_embedder:
-    def __init__(self, model, tokenizer, model_name):
+    def __init__(self, model, tokenizer, embed):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.tokenizer = tokenizer
-        if 'llama' in model_name:
-          self.embed = model.model.embed_tokens
-        elif 't5' in model_name:
-          self.embed = model.encoder.embed_tokens
+        self.embed = embed
 
     def tokenize(self, text):
         return self.tokenizer(text, return_tensors="pt").to(self.device)
@@ -31,5 +28,15 @@ def get_embedding(token, model):
     embed.detach()
     return embed.numpy()
 
+def load_embeddings(weights_file):
+    state_dict = torch.load(weights_file, map_location="cpu")
+    vocab_size, embedding_dim = state_dict['weight'].shape
 
+    print(f"Detected Vocab Size: {vocab_size}")
+    print(f"Detected Embedding Dim: {embedding_dim}")
+
+    reloaded_emb = torch.nn.Embedding(vocab_size, embedding_dim)
+    reloaded_emb.load_state_dict(state_dict)
+    reloaded_emb.eval()
+    return reloaded_emb
 
