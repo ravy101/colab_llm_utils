@@ -1,7 +1,7 @@
 import torch
 
 class tokenizer_embedder:
-    def __init__(self, model, tokenizer, embed):
+    def __init__(self,  embed, tokenizer):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.tokenizer = tokenizer
         self.embed = embed
