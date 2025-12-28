@@ -88,3 +88,16 @@ llama3_70b = {"model_name": "meta-llama/Llama-3.1-70B",
                  "block_limit": None
                  }
 
+mistral_7b = {"model_name": "mistralai/Mistral-7B-v0.3",
+                 "hf_model_func": AutoModelForCausalLM,
+                 "bnb_config": single_quant_cfg,
+                 "block_limit": None
+                 }
+
+mistral_7b_chat = {"model_name": "mistralai/Mistral-Instruct-7B-v0.3",
+                 "hf_model_func": AutoModelForCausalLM,
+                 "bnb_config": single_quant_cfg,
+                 "block_limit": None
+                 }
+
+
