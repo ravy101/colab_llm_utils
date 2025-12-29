@@ -29,10 +29,12 @@ def dist_mh(arr1, arr2):
 
 def sim_cosine(arr1, arr2):
     dprod = np.dot(arr1, arr2)
-    if dprod == 0:
+    norm1 = np.linalg.norm(arr1)
+    norm2 =  np.linalg.norm(arr2)
+    if dprod == 0 or norm1 == 0 or norm2 == 0:
         result = 0
     else:
-        result = dprod / (np.linalg.norm(arr1) * np.linalg.norm(arr2))
+        result = dprod/(norm1*norm2)
     return result
 
 
