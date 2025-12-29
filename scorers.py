@@ -203,14 +203,15 @@ def best_f1(prediction, reference_aliases):
       scores.append(result)
     return max(scores)
 
-def best_bem(prediction, reference_aliases, question):
+def best_bem(prediction, reference_aliases, question, verbose = False):
     # Compute BEM for all aliases and take the best F1
     scores = []
     if type(reference_aliases) == str:
       reference_aliases = [reference_aliases]
     if type(prediction) == list:
       prediction = prediction[0]
-    print(f"computing bem {prediction} == {reference_aliases}")
+    if verbose:
+      print(f"computing bem {prediction} == {reference_aliases[:MAX_ALIASES]}")
     for alias in reference_aliases[:MAX_ALIASES]:
       result = bem_score(prediction, alias, question)
       scores.append(result)
