@@ -100,4 +100,10 @@ mistral_7b_chat = {"model_name": "mistralai/Mistral-Instruct-7B-v0.3",
                  "block_limit": None
                  }
 
+mistral_nemo = {"model_name": "mistralai/Mistral-Nemo-Base-2407",
+                 "hf_model_func": AutoModelForCausalLM,
+                 "bnb_config": single_quant_cfg,
+                 "block_limit": None
+                 }
+
 
