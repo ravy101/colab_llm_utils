@@ -1,4 +1,5 @@
 import torch
+import os
 
 class tokenizer_embedder:
     def __init__(self,  embed, tokenizer):
@@ -40,3 +41,13 @@ def load_embeddings(weights_file):
     reloaded_emb.eval()
     return reloaded_emb
 
+def get_or_load_embedding(base_path, embedding_model_config):
+    embed_file = os.path.join(base_path, "embeddings", f"{embedding_model_config['model_name'].split('/')[-1]}_embed.pt")
+    if os.path.exists(embed_file):
+      embedding_layer = load_embeddings(embed_file)
+    else:
+      model = embedding_model_config['hf_model_func'].from_pretrained(embedding_model_config['model_name'])
+      embedding_layer = model.model.embed_tokens
+      os.makedirs(os.path.join(base_path, "embeddings"), exist_ok=True)
+      torch.save(embedding_layer.state_dict(), embed_file)
+    return embedding_layer
