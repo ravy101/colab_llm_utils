@@ -107,3 +107,9 @@ mistral_nemo = {"model_name": "mistralai/Mistral-Nemo-Base-2407",
                  }
 
 
+ministral_3b = {"model_name": "mistralai/Ministral-3-3B-Base-2512",
+                 "hf_model_func": AutoModelForCausalLM,
+                 "bnb_config": None,
+                 "block_limit": None
+                 }
+
