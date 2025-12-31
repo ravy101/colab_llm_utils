@@ -113,3 +113,9 @@ ministral_3b = {"model_name": "mistralai/Ministral-3-3B-Base-2512",
                  "block_limit": None
                  }
 
+ministral_8b_chat = {"model_name": "mistralai/Ministral-8B-Instruct-2410",
+                 "hf_model_func": AutoModelForCausalLM,
+                 "bnb_config": single_quant_cfg,
+                 "block_limit": None
+                 }
+
