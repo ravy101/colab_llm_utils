@@ -26,31 +26,31 @@ def softmax_from_loglik(logliks):
 
 def chow_av(likelihoods):
     result = likelihoods.mean()
-    if np.isnan(result):
+    if np.isnan(result) or np.isinf(result):
        result = 0
     return result
 
 def log_chow_av(likelihoods):
     result = np.log(likelihoods).mean()
-    if np.isnan(result):
+    if np.isnan(result) or np.isinf(result):
        result = 0
     return result
 
 def chow_prod_av(probas):
     result =  np.prod(probas)
-    if np.isnan(result):
+    if np.isnan(result) or np.isinf(result):
        result = 0
     return result
 
 def chow_sum(likelihoods):
     result =  likelihoods.sum()
-    if np.isnan(result):
+    if np.isnan(result) or np.isinf(result):
        result = 0
     return result
 
 def chow_quantile(likelihoods, alpha = .5):
     result =  np.quantile(likelihoods, alpha)
-    if np.isnan(result):
+    if np.isnan(result) or np.isinf(result):
        result = 0
     return result
 
