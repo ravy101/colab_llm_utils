@@ -12,10 +12,10 @@ def tokens_may_collapse(token_a_id, token_b_id, tokenizer):
     Return True if token_a and token_b could represent the same string
     after continuing (i.e., one is a prefix of the other).
     """
-    space_equiv = ['\u2581', '\xa0', '\u0020']
+    space_equiv = ['\u2581', '\xa0', '\u0020', '\n', '\n\n']
     #removing strip here is this a bad idea?.strip().strip()
-    a_str = tokenizer.decode([token_a_id], clean_up_tokenization_spaces=False).lower().strip()
-    b_str = tokenizer.decode([token_b_id], clean_up_tokenization_spaces=False).lower().strip()
+    a_str = tokenizer.decode([token_a_id], clean_up_tokenization_spaces=False).lower()
+    b_str = tokenizer.decode([token_b_id], clean_up_tokenization_spaces=False).lower()
 
     for s in space_equiv:
         a_str = a_str.replace(s, ' ')
