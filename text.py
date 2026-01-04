@@ -14,12 +14,14 @@ def tokens_may_collapse(token_a_id, token_b_id, tokenizer):
     """
 
     #removing strip here is this a bad idea?.strip().strip()
-    a_str = tokenizer.decode([token_a_id], clean_up_tokenization_spaces=False).lower()
-    b_str = tokenizer.decode([token_b_id], clean_up_tokenization_spaces=False).lower()
-
-
+    a_str = tokenizer.decode([token_a_id], clean_up_tokenization_spaces=False).lower().replace('\xa0', ' ')
+    b_str = tokenizer.decode([token_b_id], clean_up_tokenization_spaces=False).lower().replace('\xa0', ' ')
 
     return a_str.startswith(b_str) or b_str.startswith(a_str)
+
+def is_whitespace(token_id, tokenizer):
+    text = tokenizer.decode([token_id], clean_up_tokenization_spaces=False).lower().strip()
+    return len(text) == 0
 
 def get_token_importance(pos):
     if pos in ["NOUN", "VERB", "ADJ", "PROPN", "NUM"]:
