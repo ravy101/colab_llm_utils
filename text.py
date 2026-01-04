@@ -19,7 +19,7 @@ def tokens_may_collapse(token_a_id, token_b_id, tokenizer):
 
     for s in space_equiv:
         a_str = a_str.replace(s, ' ')
-        b_str = b_str.repace(s, ' ')
+        b_str = b_str.replace(s, ' ')
 
     return a_str.startswith(b_str) or b_str.startswith(a_str)
 
