@@ -2,16 +2,16 @@
 languages = {"en": "English", "fr": "French", "de": "German",  "cs": "Czech", "ru": "Russian"}
 
 def doc_to_text_wmt_fr(item, from_lang = 'fr', to_lang = 'en'):
-  return f"{languages[from_lang]}: {item['translation'][from_lang]}\n{languages[to_lang]}: "
+  return f"{languages[from_lang]} source: {item['translation'][from_lang]}\n{languages[to_lang]} translation:"
 
-def doc_to_text_wmt_fr(item, from_lang = 'fr', to_lang = 'en'):
+def doc_to_text_wmt_fr_inst(item, from_lang = 'fr', to_lang = 'en'):
   return f"Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {item['translation'][from_lang]}\n "
 
 def doc_to_text_wmt_ru(item, from_lang = 'en', to_lang = 'ru'):
-  return f"Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {item['translation'][from_lang]}\n "
+  return f"{languages[from_lang]} source: {item['translation'][from_lang]}\n{languages[to_lang]} translation:"
 
 def doc_to_text_wmt_de(item, from_lang = 'de', to_lang = 'en'):
-  return f"Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {item['translation'][from_lang]}\n "
+  return f"{languages[from_lang]} source: {item['translation'][from_lang]}\n{languages[to_lang]} translation:"
 
 def doc_to_text_qa(item):
   return f"Provide a short answer without explanation.\n Question: {item['question']}\nShort Answer:"
