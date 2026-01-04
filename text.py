@@ -12,8 +12,12 @@ def tokens_may_collapse(token_a_id, token_b_id, tokenizer):
     Return True if token_a and token_b could represent the same string
     after continuing (i.e., one is a prefix of the other).
     """
-    a_str = tokenizer.decode([token_a_id], clean_up_tokenization_spaces=False).strip().lower()
-    b_str = tokenizer.decode([token_b_id], clean_up_tokenization_spaces=False).strip().lower()
+
+    #removing strip here is this a bad idea?.strip().strip()
+    a_str = tokenizer.decode([token_a_id], clean_up_tokenization_spaces=False).lower()
+    b_str = tokenizer.decode([token_b_id], clean_up_tokenization_spaces=False).lower()
+
+
 
     return a_str.startswith(b_str) or b_str.startswith(a_str)
 
