@@ -17,10 +17,10 @@ def doc_to_text_qa(item):
   return f"Provide a short answer without explanation.\n Question: {item['question']}\nShort Answer:"
 
 def doc_to_text_nq(item):
-  text = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-  Please provide the specific answer to the following question. Do not include reasoning, explanation or conversational filler. Output only the required information as concisely as possible.<|eot_id|><|start_header_id|>user<|end_header_id|>
+  text = f"""
+  Please provide the specific answer to the following question. Do not include reasoning, explanation or conversational filler. Output only the required information as concisely as possible.
   Question: {item['question']}?
-Answer:<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
+Answer:"""
   return text
 
 
