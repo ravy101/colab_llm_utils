@@ -38,6 +38,10 @@ def sim_cosine(arr1, arr2):
     return result
 
 def dist_transform(dist, a = .5, b=1.2):
-    return a(dist+1)^3 - b*dist - b
+    res = a(dist+1)^3 - b*dist - b
+    res = min(res, 1)
+    res = max(res, -1)
+    return res
+
 
 
