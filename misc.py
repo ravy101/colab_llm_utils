@@ -43,5 +43,19 @@ def dist_transform(dist, a = .5, b=1.2):
     res = max(res, -1)
     return res
 
+def dist_transform2(dist, a = .5, b=1.4):
+    if dist < 0:
+      res = .75
+    elif dist < .4:
+      res =  0
+    elif dist < .75:
+      res = .5
+    else:
+      res = .75
+    return res
+
+def gaussian_valley(sim, mu=0.25, sigma=0.25, low=-0., high=.750):
+    return low + (high - low) * (1 - np.exp(-((sim - mu)**2) / (2 * sigma**2)))
+
 
 

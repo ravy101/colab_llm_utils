@@ -167,11 +167,11 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
                     distance = np.where(future_tokens == t)[0][0] + 1
                     decay = poly_decay(distance, distance_limit)
                     embed = emb_dict[t].squeeze()
-                    sim = misc.dist_transform(misc.sim_cosine(chosen_emb, embed)) * sim_adjust
+                    sim = misc.gaussian_valley(misc.sim_cosine(chosen_emb, embed)) * sim_adjust
                     sims.append(max(sim, decay))
                 else:
                     embed = emb_dict[t].squeeze()
-                    sim = misc.dist_transform(misc.sim_cosine(chosen_emb, embed)) * sim_adjust
+                    sim = misc.gaussian_valley(misc.sim_cosine(chosen_emb, embed)) * sim_adjust
                     sims.append(sim)
 
             w_sims = np.array([s*p for s, p in zip(sims, probs)])
