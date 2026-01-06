@@ -37,5 +37,7 @@ def sim_cosine(arr1, arr2):
         result = dprod/(norm1*norm2)
     return result
 
+def dist_transform(dist, a = .5, b=1.2):
+    return a(dist+1)^3 - b*dist - b
 
 
