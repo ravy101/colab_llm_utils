@@ -53,10 +53,10 @@ def visualize_logit_tree(logits_per_step, tokenizer, emb_dict, chosen_tokens, to
                 node_colours.append("orange")
                 chosen_this_step = node_name
               else:
-                embed = emb_dict[token_id]
-                chosen_embed = emb_dict[output_tokens[step]]
+                embed = emb_dict[token_id].squeeze()
+                chosen_embed = emb_dict[output_tokens[step]].squeeze()
                 cs = misc.sim_cosine(chosen_embed, embed)
-                label = label + f"\nCS: {cs}"
+                label = label + f"\nCS: {cs:.2f}"
                 G.add_node(node_name, label=label, step=step)
                 node_colours.append("lightblue")
 
@@ -137,10 +137,10 @@ def compare_logit_tree(logits_per_step, tokenizer, emb_dict, chosen_tokens, top_
                 node_colours.append("orange")
                 chosen_this_step = node_name
               else:
-                embed = emb_dict[token_id]
-                chosen_embed = emb_dict[output_tokens[step]]
+                embed = emb_dict[token_id].squeeze()
+                chosen_embed = emb_dict[output_tokens[step]].squeeze()
                 cs = misc.sim_cosine(chosen_embed, embed)
-                label = label + f"\nCS: {cs}"
+                label = label + f"\nCS: {cs:.2f}"
                 G.add_node(node_name, label=label, step=step)
                 node_colours.append("lightblue")
 
