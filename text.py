@@ -14,8 +14,8 @@ def tokens_may_collapse(token_a_id, token_b_id, tokenizer):
     """
     space_equiv = ['\u2581', '\xa0', '\u0020', '\n', '\n\n']
     #removing strip here is this a bad idea?.strip().strip()
-    a_str = tokenizer.decode([token_a_id], clean_up_tokenization_spaces=False).lower()
-    b_str = tokenizer.decode([token_b_id], clean_up_tokenization_spaces=False).lower()
+    a_str = tokenizer.decode([token_a_id], clean_up_tokenization_spaces=False).lower().strip()
+    b_str = tokenizer.decode([token_b_id], clean_up_tokenization_spaces=False).lower().strip()
 
     for s in space_equiv:
         a_str = a_str.replace(s, ' ')
