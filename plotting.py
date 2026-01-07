@@ -4,7 +4,7 @@ import numpy as np
 import math
 import networkx as nx
 import matplotlib.pyplot as plt
-import misc
+from . import misc
 
 def visualize_logit_tree(logits_per_step, tokenizer, chosen_tokens, top_k=5):
     """
