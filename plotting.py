@@ -6,7 +6,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from . import misc
 
-def visualize_logit_tree(logits_per_step, tokenizer, chosen_tokens, top_k=5):
+def visualize_logit_tree(logits_per_step, tokenizer, emb_dict, chosen_tokens, top_k=5):
     """
     Visualize candidate token branches as a tree.
 
@@ -46,13 +46,17 @@ def visualize_logit_tree(logits_per_step, tokenizer, chosen_tokens, top_k=5):
             else:
               token_text = tokenizer.decode([token_id])
               node_name = f"{step}-{token_id}"
-              label = f"{token_text}\n{prob:.2f}"
+              label = f"{token_text}\np: {prob:.2f}"
 
               if token_id == output_tokens[step]:
                 G.add_node(node_name, label=label, step=step)
                 node_colours.append("orange")
                 chosen_this_step = node_name
               else:
+                embed = emb_dict[token_id]
+                chosen_embed = emb_dict[output_tokens[step]]
+                cs = misc.sim_cosine(chosen_embed, embed)
+                label = label + f"\nCS: {cs}"
                 G.add_node(node_name, label=label, step=step)
                 node_colours.append("lightblue")
 
