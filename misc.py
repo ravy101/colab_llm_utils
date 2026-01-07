@@ -58,7 +58,7 @@ def gaussian_valley(sim, mu=0.25, sigma=0.25, low=-0., high=.750):
     return low + (high - low) * (1 - np.exp(-((sim - mu)**2) / (2 * sigma**2)))
 
 def generalized_gaussian_valley(sim, mu=0.25, sigma=0.5, p=2,
-                                low=0., high=.65):
+                                low=-0.35, high=.65):
     z = np.abs((sim - mu) / sigma)
     return low + (high - low) * (1 - np.exp(-(z ** p)))
 

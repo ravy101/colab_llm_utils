@@ -176,7 +176,7 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
 
             w_sims = np.array([s*p for s, p in zip(sims, probs)])
             w_sum = w_sims.sum(axis=0)
-            dist_likes.append(w_sum)
+            dist_likes.append(max(w_sum, .01))
 
         if len(dist_likes) == 0:
             dist_likes.append(0)
