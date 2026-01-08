@@ -13,6 +13,9 @@ def doc_to_text_wmt_ru(item, from_lang = 'en', to_lang = 'ru'):
 def doc_to_text_wmt_de(item, from_lang = 'de', to_lang = 'en'):
   return f"{languages[from_lang]} source: {item['translation'][from_lang]}\n{languages[to_lang]} translation:"
 
+def doc_to_text_wmt_de_inst(item, from_lang = 'de', to_lang = 'en'):
+  return f"Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {item['translation'][from_lang]}\n "
+
 def doc_to_text_qa(item):
   return f"Provide a short answer without explanation.\n Question: {item['question']}\nShort Answer:"
 
@@ -65,7 +68,7 @@ wmt14 = {"clean_name": "wmt14fr-en",
         "subset": "test",
         "task_type": "translation",
         "dict_ans": False,
-        "doc_to_text": doc_to_text_wmt_fr,
+        "doc_to_text": doc_to_text_wmt_fr_inst,
         "doc_to_ans": doc_to_answer_wmt_fr}
 
 triviaqa = {"clean_name": "TriviaQA",
@@ -115,7 +118,7 @@ wmt19de = {"clean_name": "wmt19de-en",
         "subset": "train",
         "task_type": "translation",
         "dict_ans": False,
-        "doc_to_text": doc_to_text_wmt_de,
+        "doc_to_text": doc_to_text_wmt_de_inst,
         "doc_to_ans": doc_to_answer_wmt_de}
 
 sciq = {"clean_name": "SciQ",
