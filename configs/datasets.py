@@ -56,7 +56,7 @@ def doc_to_answer_wmt_de(item, from_lang = 'de', to_lang = 'en'):
   return item['translation'][to_lang]
 
 def doc_to_text_truthful(item):
-  return f"Provide a truthful, factual answer. {item['question']}\nAnswer: "
+  return f"Provide a short, truthful, factual answer to this question. {item['question']}\nAnswer:"
 
 def doc_to_answer_truthful(item):
   return item['correct_answers']
