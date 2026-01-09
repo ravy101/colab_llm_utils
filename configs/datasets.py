@@ -121,6 +121,16 @@ wmt19de = {"clean_name": "wmt19de-en",
         "doc_to_text": doc_to_text_wmt_de,
         "doc_to_ans": doc_to_answer_wmt_de}
 
+wmt14de = {"clean_name": "wmt14de-en",
+        "dataset_name": "de-en",
+        "dataset_location": "wmt/wmt14",
+        "options": None,
+        "subset": "train",
+        "task_type": "translation",
+        "dict_ans": False,
+        "doc_to_text": doc_to_text_wmt_de,
+        "doc_to_ans": doc_to_answer_wmt_de}
+
 sciq = {"clean_name": "SciQ",
         "dataset_name": "default",
         "dataset_location": "allenai/sciq",
