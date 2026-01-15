@@ -129,8 +129,7 @@ def get_emb_likes(df, embedder, suffix=''):
 def poly_decay(distance, limit):
     return max(0, 1 - (distance/limit)**2)
 
-def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, 
-                     adjust_partwords=True, collapse_prefix = True, tag = '', distance_limit = 2, sim_adjust = .5):
+def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, collapse_prefix = True, tag = '', distance_limit = 2, sim_adjust = .5):
     all_dist_likes = []
     #for each response
     for logits, token_outs in zip(df['logit_outs' + logit_suffix], df['token_outs' + token_suffix]):
