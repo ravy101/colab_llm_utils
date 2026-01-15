@@ -229,25 +229,6 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                     sims.append(1)
                     continue
 
-                # and token_new_word[i]
-                if collapse_prefix and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
-                    sims.append(1)
-                elif position_correct and t in future_tokens:
-                    distance = np.where(future_tokens == t)[0][0] + 1
-                    decay = poly_decay(distance, distance_limit)
-                    embed = emb_dict[t].squeeze()
-                    sim = misc.generalized_gaussian_valley(misc.sim_cosine(chosen_emb, embed)) * sim_adjust
-                    sims.append(max(sim, decay))
-                else:
-                    embed = emb_dict[t].squeeze()
-                    sim = misc.generalized_gaussian_valley(misc.sim_cosine(chosen_emb, embed)) * sim_adjust
-                    sims.append(sim)
-            for t in tokens:
-                if t == output_tokens[i].item():
-                    #this is the output token
-                    sims.append(1)
-                    continue
-
                 if collapse_prefix and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
                     sims.append(1)
                 elif position_correct and t in future_tokens:
