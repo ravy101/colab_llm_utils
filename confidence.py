@@ -186,6 +186,7 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
     df[tag + '_cs_likes'+token_suffix] = all_dist_likes
     df[tag + '_cs_log_chow_av'] = [likelihood.log_chow_av(l) for l in all_dist_likes]
     df[tag + '_cs_chow_av'+token_suffix] = [likelihood.chow_av(l) for l in df[tag + '_cs_likes'+token_suffix]]
+    df[tag + '_cs_cvar'+token_suffix] = [likelihood.chow_cvar_uncertainty(l) for l in df[tag + '_cs_likes'+token_suffix]]
     alpha = .4
     q1 = tag + f'_cs_chow_quant{alpha}'+token_suffix
     df[q1] = [likelihood.chow_quantile(l, alpha = alpha) for l in df[tag + '_cs_likes'+token_suffix]]
@@ -221,6 +222,26 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
             tokens = list(l.keys())
             probs = likelihood.softmax_from_loglik(list(l.values()))
             sims = []
+
+            for t in tokens:
+                if t == output_tokens[i].item():
+                    #this is the output token
+                    sims.append(1)
+                    continue
+
+                # and token_new_word[i]
+                if collapse_prefix and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
+                    sims.append(1)
+                elif position_correct and t in future_tokens:
+                    distance = np.where(future_tokens == t)[0][0] + 1
+                    decay = poly_decay(distance, distance_limit)
+                    embed = emb_dict[t].squeeze()
+                    sim = misc.generalized_gaussian_valley(misc.sim_cosine(chosen_emb, embed)) * sim_adjust
+                    sims.append(max(sim, decay))
+                else:
+                    embed = emb_dict[t].squeeze()
+                    sim = misc.generalized_gaussian_valley(misc.sim_cosine(chosen_emb, embed)) * sim_adjust
+                    sims.append(sim)
             for t in tokens:
                 if t == output_tokens[i].item():
                     #this is the output token
@@ -246,7 +267,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
 
             w_sims = np.array([s*p for s, p in zip(sims, probs)])
             w_sum = w_sims.sum(axis=0)
-            dist_likes.append(w_sum)
+            dist_likes.append(max(w_sum, .01))
 
         if len(dist_likes) == 0:
             dist_likes.append(0)
@@ -256,4 +277,11 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
     df[tag + '_cs_likes'+token_suffix] = all_dist_likes
     df[tag + '_cs_log_chow_av'] = [likelihood.log_chow_av(l) for l in all_dist_likes]
     df[tag + '_cs_chow_av'+token_suffix] = [likelihood.chow_av(l) for l in df[tag + '_cs_likes'+token_suffix]]
-    df[tag + '_cs_chow_sum'+token_suffix] = [likelihood.chow_sum(l) for l in df[tag + '_cs_likes'+token_suffix]]
+    df[tag + '_cs_cvar'+token_suffix] = [likelihood.chow_cvar_uncertainty(l) for l in df[tag + '_cs_likes'+token_suffix]]
+    alpha = .4
+    q1 = tag + f'_cs_chow_quant{alpha}'+token_suffix
+    df[q1] = [likelihood.chow_quantile(l, alpha = alpha) for l in df[tag + '_cs_likes'+token_suffix]]
+    alpha = .8
+    q2 = tag + f'_cs_chow_quant{alpha}'+token_suffix
+    df[q2] = [likelihood.chow_quantile(l, alpha = alpha) for l in df[tag + '_cs_likes'+token_suffix]]
+    df[tag + f'_cs_chow_quant_m'+token_suffix]  = (df[q1]/2) + (df[q2]/2)
