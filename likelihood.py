@@ -120,7 +120,7 @@ def chow_cvar_uncertainty(
     # --- 5. Adaptive lambda based on dispersion ---
     # normalize variance to (0,1) using a soft saturation
     var = np.var(nll)
-    lambda_ = (var/T) / ((var/T) + 1.0)
+    lambda_ = (var) / ((var) + 1.0)
 
     # --- 6. Final blended score ---
     uncertainty = (1.0 - lambda_) * chow + lambda_ * cvar
@@ -137,4 +137,8 @@ def quantile_analysis(df, column, metric, quantiles = [0, .1, .2, .3, .4, .5, .6
     cor_table = df[new_cols + [metric] ].corr(numeric_only=True)[metric].abs().sort_values(ascending=False)
     return cor_table
 
-
+def sequence_variance(probas):
+    probas = np.asarray(probas, dtype=np.float64)
+    probas = np.clip(probas, eps, 1.0)
+    nll = -np.log(probas)
+    return np.var(nll)
