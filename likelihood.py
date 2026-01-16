@@ -67,6 +67,7 @@ def chow_cvar_uncertainty(
     eps=1e-12,
     min_alpha=0.05,
     max_alpha=0.5,
+    upper_half = True
 ):
     """
     Best-of-both-worlds uncertainty score for open generation.
@@ -97,7 +98,10 @@ def chow_cvar_uncertainty(
     sorted_nll = np.sort(nll)
 
     # compute gaps in upper half only
-    start = T // 2
+    if upper_half:
+      start = T // 2
+    else:
+      start = 0
     gaps = sorted_nll[start+1:] - sorted_nll[start:-1]
 
     if gaps.size == 0:
@@ -122,3 +126,15 @@ def chow_cvar_uncertainty(
     uncertainty = (1.0 - lambda_) * chow + lambda_ * cvar
 
     return float(uncertainty)
+
+
+def quantile_analysis(df, column, metric, quantiles = [0, .1, .2, .3, .4, .5, .6, .7, .8, .9]):
+    new_cols = []
+    for alpha in quantiles:
+      q_col_name = column + f"_q{alpha}"
+      new_cols.append(q_col_name)
+      df[q_col_name] = [chow_quantile(l, alpha = alpha) for l in df[column]]
+    cor_table = df[new_cols + [metric] ].corr(numeric_only=True)[metric].abs().sort_values(ascending=False)
+    return cor_table
+
+
