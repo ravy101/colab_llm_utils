@@ -116,7 +116,7 @@ def chow_cvar_uncertainty(
     # --- 5. Adaptive lambda based on dispersion ---
     # normalize variance to (0,1) using a soft saturation
     var = np.var(nll)
-    lambda_ = var / (var + 1.0)
+    lambda_ = (var/T) / ((var/T) + 1.0)
 
     # --- 6. Final blended score ---
     uncertainty = (1.0 - lambda_) * chow + lambda_ * cvar
