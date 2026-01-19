@@ -66,7 +66,7 @@ def build_gold_context(example):
     Constructs context using only gold-supporting paragraphs.
     """
     # Map titles to sentences
-    relevant_titles = example['supporting_facts']['title']
+    relevant_titles = list(set(example['supporting_facts']['title']))
     titles = example['context']['title']
     sentences = example['context']['sentences']
     paragraphs = []
