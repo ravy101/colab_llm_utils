@@ -87,10 +87,10 @@ def doc_to_text_hotpot(item):
 Answer the question using ONLY the information provided in the context.
 If the answer is not in the context, say "Unknown".
 
-The answer should be short (one or two words, or a short phrase)."""
-        f"Context: {context}\n"
-        f"Question: {question}\n"
-        "Answer:"
+The answer should be short (one or two words, or a short phrase).\n"""
+        f"Context:\n{context}\n"
+        f"Question:\n{question}\n"
+        "Answer:\n"
     )
     return prompt
 
