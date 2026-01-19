@@ -84,7 +84,7 @@ def doc_to_text_hotpot(item):
 
     prompt = (
         "Answer the question using the provided context.\n\n"
-        f"Context:\n{context}\n\n"
+        f"Context: {context}\n"
         f"Question: {question}\n"
         "Answer:"
     )
