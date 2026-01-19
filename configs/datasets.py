@@ -61,6 +61,41 @@ def doc_to_text_truthful(item):
 def doc_to_answer_truthful(item):
   return item['correct_answers']
 
+def build_gold_context(example):
+    """
+    Constructs context using only gold-supporting paragraphs.
+    """
+    # Map titles to sentences
+    context_map = {
+        title: sentences for title, sentences in example["context"]
+    }
+
+    # Identify which titles are actually needed
+    gold_titles = set(title for title, _ in example["supporting_facts"])
+
+    paragraphs = []
+    for title in gold_titles:
+        sentences = context_map.get(title, [])
+        paragraph = f"{title}:\n" + " ".join(sentences)
+        paragraphs.append(paragraph)
+
+    return "\n\n".join(paragraphs)
+
+def doc_to_text_hotpot(item):
+    context = build_gold_context(item)
+    question = item["question"]
+
+    prompt = (
+        "Answer the question using the provided context.\n\n"
+        f"Context:\n{context}\n\n"
+        f"Question: {question}\n"
+        "Answer:"
+    )
+    return prompt
+
+def doc_to_ans_hotpot(item):
+  return item['answer']
+
 wmt14 = {"clean_name": "wmt14fr-en",
         "dataset_name": "fr-en",
         "dataset_location": "wmt/wmt14",
@@ -80,6 +115,18 @@ triviaqa = {"clean_name": "TriviaQA",
         "dict_ans": True,
         "doc_to_text": doc_to_text_qa,
         "doc_to_ans": doc_to_answer_qa}
+
+
+hotpotqa = {"clean_name": "HotpotQA",
+        "dataset_name": "distractor",
+        "dataset_location": "hotpotqa/hotpot_qa",
+        "options": None,
+        "subset": "train",
+        "task_type": "qa",
+        "dict_ans": True,
+        "doc_to_text": doc_to_text_hotpot,
+        "doc_to_ans": doc_to_ans_hotpot}
+
 
 nqopen = {"clean_name": "NQOpen",
         "dataset_name": "nq_open",
