@@ -66,19 +66,16 @@ def build_gold_context(example):
     Constructs context using only gold-supporting paragraphs.
     """
     # Map titles to sentences
-    context_map = {
-        title: sentences for title, sentences in example["context"]
-    }
-
-    # Identify which titles are actually needed
-    gold_titles = set(title for title, _ in example["supporting_facts"])
-
+    relevant_titles = example['supporting_facts']['title']
+    titles = example['context']['title']
+    sentences = example['context']['sentences']
     paragraphs = []
-    for title in gold_titles:
-        sentences = context_map.get(title, [])
-        paragraph = f"{title}:\n" + " ".join(sentences)
-        paragraphs.append(paragraph)
-
+    for relevent_t in relevant_titles:
+        topic_s = []
+        for t, s in zip(titles, sentences):
+            if relevent_t == t:
+                topic_s = topic_s + s
+        paragraphs.append( f"{relevent_t}:\n" + " ".join(topic_s))
     return "\n\n".join(paragraphs)
 
 def doc_to_text_hotpot(item):
