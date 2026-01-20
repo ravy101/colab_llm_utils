@@ -51,6 +51,6 @@ def confidence_metrics(df, correct_col, conf_col, n_bins=10):
   results = {}
   results['auc'] = roc_auc_score(df[correct_col],  conf)
   results['brier'] = brier_score_loss(df[correct_col],  conf)
-  results['ece'] = ece(df[correct_col], conf, n_bins=10)
+  #results['ece'] = ece(df[correct_col], conf, n_bins=10)
   results['smece'] = smece(df[correct_col], conf)
   return results
