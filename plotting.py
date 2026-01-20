@@ -280,6 +280,7 @@ def calibration_plot(df, correct_col, conf_column, bins= 10, fixed_lim = True, p
 
 def heatmap_results(results, label_override_dict = None, ax = None):
     df_res = pd.DataFrame.from_dict(results, orient='index')[['auc_20', 'auc_40', 'auc']].sort_values(by='auc', ascending=False)
+    df_res.columns = ['AUDC (.2)', 'AUDC (.4)', 'AUDC']
     if label_override_dict is not None:
         df_res.index = [label_override_dict[i] for i in df_res.index]
     df_norm = (df_res - df_res.min()) / (df_res.max() - df_res.min())
