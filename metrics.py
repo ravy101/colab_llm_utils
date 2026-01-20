@@ -46,8 +46,8 @@ def ece(y_true: np.array, y_pred: np.array, n_bins: int = 10) -> float:
 def confidence_metrics(df, correct_col, conf_col, n_bins=10):
   conf = df[conf_col].copy()
   conf = misc.norm_series(conf)
-  print(conf_col)
-  print(conf.describe())
+  #print(conf_col)
+  #print(conf.describe())
   results = {}
   results['auc'] = roc_auc_score(df[correct_col],  conf)
   results['brier'] = brier_score_loss(df[correct_col],  conf)
