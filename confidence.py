@@ -5,6 +5,35 @@ from . import misc
 import numpy as np
 
 
+
+def layer_decode_contrast(df, layer = 20, cont_weight = .2, tag = ''):
+  all_contrasts = []
+  all_logits = []
+  all_probas = []
+  for b, l, t in zip(df['blocks'], df['logit_outs'], df['token_outs']):
+    n_sequence, n_layers, n_candidates = b.shape
+    tokens = t[-len(l):]
+    contrast_sequence = []
+    logit_sequence = []
+    top_probas = []
+    for i in range(n_sequence):
+      out_prob = likelihood.softmax_from_loglik(np.array(list(l[i].values())))
+      layer_prob =  likelihood.softmax_from_loglik(b[i, layer, :])
+      contrast = out_prob - layer_prob
+      adjusted_probs = out_prob * (1 - cont_weight) + layer_prob * cont_weight
+      logit_dic = {}
+      top_probas.append(np.max(adjusted_probs))
+      for j, k in enumerate(l[i].keys()):
+        logit_dic[k] = adjusted_probs[j]
+      logit_sequence.append(logit_dic)
+      contrast_sequence.append(contrast)
+    all_logits.append(logit_sequence)
+    all_contrasts.append(np.array(contrast_sequence))
+    all_probas.append(np.array(top_probas))
+  df['top_probas'+ tag] = all_probas
+  df['contrasts' + tag] = all_contrasts
+  df['logit_outs_adj' + tag] = all_logits
+
 def get_embedding_pos_dicts(df, embedder, tokenizer, suffix = ''):
     emb_dict = {}
     pos_dict = {}
