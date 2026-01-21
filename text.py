@@ -14,8 +14,8 @@ def tokens_may_collapse(token_a_id, token_b_id, tokenizer, case_sensitive=True):
     """
     space_equiv = ['\u2581', '\xa0', '\u0020', '\n', '\n\n']
     #removing strip here is this a bad idea?.strip().strip()
-    a_str = tokenizer.decode([token_a_id], clean_up_tokenization_spaces=True).strip()
-    b_str = tokenizer.decode([token_b_id], clean_up_tokenization_spaces=True).strip()
+    a_str = tokenizer.decode([token_a_id], clean_up_tokenization_spaces=False).strip()
+    b_str = tokenizer.decode([token_b_id], clean_up_tokenization_spaces=False).strip()
     
     if not case_sensitive:
         a_str = a_str.lower()
