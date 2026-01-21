@@ -158,6 +158,13 @@ def get_emb_likes(df, embedder, suffix=''):
 def poly_decay(distance, limit):
     return max(0, 1 - (distance/limit)**2)
 
+def limit_decay(distance, limit):
+    if distance > limit:
+        res = 0
+    else:
+        res = 1
+    return res
+
 def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, collapse_prefix = True, tag = '', distance_limit = 2, sim_adjust = .5):
     all_dist_likes = []
     #for each response
@@ -261,7 +268,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                     sims.append(1)
                 elif position_correct and t in future_tokens:
                     distance = np.where(future_tokens == t)[0][0] + 1
-                    decay = poly_decay(distance, distance_limit)
+                    decay = limit_decay(distance, distance_limit)
                     embed = emb_dict[t].squeeze()
                     sim = misc.sim_cosine(chosen_emb, embed) 
                     if sim < sim_thresh:
