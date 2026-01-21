@@ -45,7 +45,7 @@ def tokens_may_collapse2(chosen_tokens, token_b_id, tokenizer, case_sensitive=Tr
         a_str = a_str.replace(s, ' ')
         b_str = b_str.replace(s, ' ')
 
-    return a_str.startswith(b_str)
+    return a_str.startswith(b_str) or b_str.startswith(a_str)
 
 def is_whitespace(token_id, tokenizer):
     text = tokenizer.decode([token_id], clean_up_tokenization_spaces=False).lower().strip()
