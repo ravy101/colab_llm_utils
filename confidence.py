@@ -232,7 +232,7 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
     
 
 
-def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, 
+def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, skip_empty = False, 
                         collapse_prefix = True, tag = '', distance_limit = 5, sim_thresh = .7):
     all_dist_likes = []
     #for each response
@@ -249,6 +249,9 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
             if skip_stopwords and output_tokens[i].item() in stopword_ids:
                 continue
 
+            if skip_empty and len(tokenizer.decode([output_tokens[i].item()], clean_up_tokenization_spaces=False).strip()) == 0:
+                continue
+                
 
             chosen_emb = emb_dict[output_tokens[i].item()].squeeze()
             future_tokens = output_tokens[i+1:]
