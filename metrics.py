@@ -43,9 +43,9 @@ def ece(y_true: np.array, y_pred: np.array, n_bins: int = 10) -> float:
     return weighed_diff.sum()
 
 
-def confidence_metrics(df, correct_col, conf_col, n_bins=10):
+def confidence_metrics(df, correct_col, conf_col, invert=False, n_bins=10):
   conf = df[conf_col].copy()
-  conf = misc.norm_series(conf)
+  conf = misc.norm_series(conf, invert=invert)
   #print(conf_col)
   #print(conf.describe())
   results = {}
