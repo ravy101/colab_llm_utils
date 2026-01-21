@@ -2,7 +2,7 @@ import numpy as np
 from . import misc
 
 def cascade_scored_samples(df, col, metric, ml_suffix='_13b'):
-    print(f"deferring by {col}")
+    #print(f"deferring by {col}")
     thresh = np.linspace(0- .001, 1 +0.0011,200)
     accs = []
     n_deferred = []
