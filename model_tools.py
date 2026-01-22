@@ -13,13 +13,13 @@ class tokenizer_embedder:
     def get_word_embedding(self, text):
       tokens = self.tokenize(text).input_ids
       with torch.no_grad():
-        e = self.embed(tokens[0][-1])
+        e = self.embed[tokens[0][-1]]
       e.detach()
       return e.numpy()
 
     def get_token_embedding(self, token):
       with torch.no_grad():
-        e = self.embed(torch.IntTensor([token]))
+        e = self.embed[torch.IntTensor([token])]
       e.detach()
       return e.numpy()
 
@@ -41,13 +41,21 @@ def load_embeddings(weights_file):
     reloaded_emb.eval()
     return reloaded_emb
 
-def get_or_load_embedding(base_path, embedding_model_config):
-    embed_file = os.path.join(base_path, "embeddings", f"{embedding_model_config['model_name'].split('/')[-1]}_embed.pt")
+def get_or_load_embedding(base_path, embedding_model_config, input_embeddings = True):
+    if input_embeddings:
+       folder_name = "embeddings"
+    else:
+       folder_name = "out_embeddings"
+    embed_file = os.path.join(base_path, folder_name, f"{embedding_model_config['model_name'].split('/')[-1]}_embed.pt")
     if os.path.exists(embed_file):
       embedding_layer = load_embeddings(embed_file)
     else:
       model = embedding_model_config['hf_model_func'].from_pretrained(embedding_model_config['model_name'])
-      embedding_layer = model.model.embed_tokens
-      os.makedirs(os.path.join(base_path, "embeddings"), exist_ok=True)
-      torch.save(embedding_layer.state_dict(), embed_file)
+      if input_embeddings:
+        embedding_layer = model.model.embed_tokens.weight.data
+      else:
+         embedding_layer = model.get_output_embeddings().weight.data
+      os.makedirs(os.path.join(base_path, folder_name), exist_ok=True)
+      torch.save(embedding_layer, embed_file)
+
     return embedding_layer
