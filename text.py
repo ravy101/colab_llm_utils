@@ -47,6 +47,31 @@ def tokens_may_collapse2(chosen_tokens, token_b_id, tokenizer, case_sensitive=Tr
 
     return a_str.startswith(b_str) or b_str.startswith(a_str)
 
+def tokens_may_collapse3(chosen_tokens, token_b_id, tokenizer, case_sensitive=True):
+    """
+    Return True if token_a and token_b could represent the same string
+    after continuing (i.e., one is a prefix of the other).
+    """
+    space_equiv = ['\u2581', '\xa0', '\u0020', '\n', '\n\n']
+    c1 = tokens_may_collapse(chosen_tokens[0].item(), token_b_id, tokenizer, case_sensitive=case_sensitive)
+    c2 = tokens_may_collapse2(chosen_tokens, token_b_id, tokenizer, case_sensitive=case_sensitive)
+    #removing strip here is this a bad idea?.strip().strip()
+    a_str = tokenizer.decode(chosen_tokens, clean_up_tokenization_spaces=True).strip()
+    b_str = tokenizer.decode([token_b_id], clean_up_tokenization_spaces=True).strip()
+    
+    if c1 != c2:
+        print(f"disagreement on {a_str} and {b_str}")
+
+    if not case_sensitive:
+        a_str = a_str.lower()
+        b_str = b_str.lower()
+
+    for s in space_equiv:
+        a_str = a_str.replace(s, ' ')
+        b_str = b_str.replace(s, ' ')
+
+    return a_str.startswith(b_str)
+
 def is_whitespace(token_id, tokenizer):
     text = tokenizer.decode([token_id], clean_up_tokenization_spaces=False).lower().strip()
     return len(text) == 0
