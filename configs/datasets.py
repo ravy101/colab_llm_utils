@@ -198,8 +198,8 @@ sciq = {"clean_name": "SciQ",
 
 xsum = {
     "clean_name": "XSum",
-    "dataset_name": "xsum",
-    "dataset_location": "xsum",
+    "dataset_name": "default",
+    "dataset_location": "EdinburghNLP/xsum",
     "options": None,
     "subset": "train",
     "task_type": "summarization",
@@ -210,8 +210,8 @@ xsum = {
 
 samsum = {
     "clean_name": "SAMSum",
-    "dataset_name": "samsum",
-    "dataset_location": "samsum",
+    "dataset_name": "default",
+    "dataset_location": "knkarthick/samsum",
     "options": None,
     "subset": "train",
     "task_type": "summarization",
