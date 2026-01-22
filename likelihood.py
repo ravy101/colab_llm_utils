@@ -137,7 +137,7 @@ def quantile_analysis(df, column, metric, quantiles = [0, .1, .2, .3, .4, .5, .6
     cor_table = df[new_cols + [metric] ].corr(numeric_only=True)[metric].abs().sort_values(ascending=False)
     return cor_table
 
-def sequence_variance(probas):
+def sequence_variance(probas, eps = 1e-12):
     probas = np.asarray(probas, dtype=np.float64)
     probas = np.clip(probas, eps, 1.0)
     nll = -np.log(probas)
