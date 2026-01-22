@@ -99,7 +99,16 @@ def doc_to_ans_hotpot(item):
 
 
 def doc_to_text_summarization(doc):
-    return doc.get("document") or doc.get("dialogue")
+    prompt = f"""Write a concise, factual summary of the text below.
+The summary should capture the main event or point.
+Do not add new information.
+Keep the summary brief and self-contained.
+
+Text:
+{doc.get("document") or doc.get("dialogue")}
+Summary:
+"""
+    return prompt
 
 def doc_to_summary(doc):
     return doc["summary"]
