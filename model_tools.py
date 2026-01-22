@@ -31,15 +31,16 @@ def get_embedding(token, model):
 
 def load_embeddings(weights_file):
     state_dict = torch.load(weights_file, map_location="cpu")
-    vocab_size, embedding_dim = state_dict['weight'].shape
+    vocab_size, embedding_dim = state_dict.shape
 
     print(f"Detected Vocab Size: {vocab_size}")
     print(f"Detected Embedding Dim: {embedding_dim}")
 
-    reloaded_emb = torch.nn.Embedding(vocab_size, embedding_dim)
-    reloaded_emb.load_state_dict(state_dict)
-    reloaded_emb.eval()
-    return reloaded_emb
+    #reloaded_emb = torch.nn.Embedding(vocab_size, embedding_dim)
+    #reloaded_emb.load_state_dict(state_dict)
+    #reloaded_emb.eval()
+    #return reloaded_emb
+    return state_dict
 
 def get_or_load_embedding(base_path, embedding_model_config, input_embeddings = True):
     if input_embeddings:
