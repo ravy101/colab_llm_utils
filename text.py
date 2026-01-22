@@ -59,8 +59,8 @@ def tokens_may_collapse3(chosen_tokens, token_b_id, tokenizer, case_sensitive=Tr
     a_str = tokenizer.decode(chosen_tokens, clean_up_tokenization_spaces=True).strip()
     b_str = tokenizer.decode([token_b_id], clean_up_tokenization_spaces=True).strip()
     
-    if c1 != c2:
-        print(f"disagreement on {a_str} and {b_str}")
+    #if c1 != c2:
+    #    print(f"disagreement on {a_str} and {b_str}")
 
     if not case_sensitive:
         a_str = a_str.lower()

@@ -269,7 +269,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
 
                 #if collapse_prefix and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
                 #if collapse_prefix and text.tokens_may_collapse2(output_tokens[i:], t, tokenizer):
-                if collapse_prefix and text.tokens_may_collapse3(output_tokens[i:], t, tokenizer):
+                if collapse_prefix and text.tokens_may_collapse3(output_tokens[i:], t, tokenizer, case_sensitive=False):
                     sims.append(1)
                 elif position_correct and t in future_tokens:
                     distance = np.where(future_tokens == t)[0][0] + 1
