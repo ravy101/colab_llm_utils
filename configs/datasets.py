@@ -97,6 +97,13 @@ The answer should be short (one or two words, or a short phrase).\n"""
 def doc_to_ans_hotpot(item):
   return item['answer']
 
+
+def doc_to_text_summarization(doc):
+    return doc.get("document") or doc.get("dialogue")
+
+def doc_to_summary(doc):
+    return doc["summary"]
+
 wmt14 = {"clean_name": "wmt14fr-en",
         "dataset_name": "fr-en",
         "dataset_location": "wmt/wmt14",
@@ -188,4 +195,28 @@ sciq = {"clean_name": "SciQ",
         "dict_ans": False,
         "doc_to_text": doc_to_text_sciq,
         "doc_to_ans": doc_to_answer_sciq}
+
+xsum = {
+    "clean_name": "XSum",
+    "dataset_name": "xsum",
+    "dataset_location": "xsum",
+    "options": None,
+    "subset": "train",
+    "task_type": "summarization",
+    "dict_ans": False,
+    "doc_to_text": doc_to_text_summarization,
+    "doc_to_ans": doc_to_summary,
+}
+
+samsum = {
+    "clean_name": "SAMSum",
+    "dataset_name": "samsum",
+    "dataset_location": "samsum",
+    "options": None,
+    "subset": "train",
+    "task_type": "summarization",
+    "dict_ans": False,
+    "doc_to_text": doc_to_text_summarization,
+    "doc_to_ans": doc_to_summary,
+}
 
