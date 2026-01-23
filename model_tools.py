@@ -51,7 +51,7 @@ def get_or_load_embedding(base_path, embedding_model_config, input_embeddings = 
     if os.path.exists(embed_file):
       embedding_layer = load_embeddings(embed_file)
     else:
-      model = embedding_model_config['hf_model_func'].from_pretrained(embedding_model_config['model_name'])
+      model = embedding_model_config['hf_model_func'].from_pretrained(embedding_model_config['model_name'], quantization_config=embedding_model_config['bnb_config'])
       if input_embeddings:
         embedding_layer = model.model.embed_tokens.weight.data
       else:
