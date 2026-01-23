@@ -62,6 +62,11 @@ def post_hoc_oof(
     Returns out-of-fold predictions for each row in df using 5-fold CV.
     """
 
+    for c in feature_cols:
+        if c not in list(df.columns):
+            print(f"feature {c} not found in dataframe.")
+            feature_cols.remove(c)
+
     if rf_kwargs is None:
         rf_kwargs = {}
 
