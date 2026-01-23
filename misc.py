@@ -1,5 +1,5 @@
 import numpy as np
-
+from . import likelihood
 
 def norm_series(series, invert = False):
     normed = (series - series.min())/(series.max() - series.min())
@@ -61,4 +61,17 @@ def generalized_gaussian_valley(sim, mu=0.25, sigma=0.5, p=2,
                                 low=-0.2, high=.8):
     z = np.abs((sim - mu) / sigma)
     return low + (high - low) * (1 - np.exp(-(z ** p)))
+
+def extra_cols(df):
+  df['random'] = np.random.rand(len(df))
+  df['output_len'] = [len(l) for l in df['logit_outs']]
+  df['word_len'] = [len(r[0].split()) for r in df['responses']]
+  df['word_len_large'] = [len(r[0].split()) for r in df['responses_large']]
+  df['words_per_token'] = df['word_len'] / df['output_len']
+  df['log_chow_av'] = [likelihood.log_chow_av(p) for p in df['top_probas']]
+  df['cvar'] = [likelihood.chow_cvar_uncertainty(p) for p in df['top_probas']]
+  df['quant_4'] = [likelihood.chow_quantile(p, alpha=.4) for p in df['top_probas']]
+  df['normed_quantile'] = norm_series(df['quant_4'], invert = True)
+  df['normed_av'] = norm_series(df['chow_av'], invert = True)
+  df['normed_sum'] = norm_series(df['chow_sum'], invert = True)
 
