@@ -100,7 +100,7 @@ def doc_to_ans_hotpot(item):
 
 def doc_to_text_summarization(doc):
     prompt = f"""Write a concise, factual summary of the text below.
-The summary should capture the main event or point.
+The summary should capture the main event or most important point, not every message individually.
 Do not add new information.
 Keep the summary brief and self-contained (1 to 3 numbered sentences).
 
@@ -108,7 +108,7 @@ Text:
 {doc.get("document") or doc.get("dialogue")}
 
 Summary:
-1) """
+1. """
     return prompt
 
 def doc_to_summary(doc):
