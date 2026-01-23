@@ -1,4 +1,9 @@
 import numpy as np
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import KFold
+
 from . import misc
 
 def cascade_scored_samples(df, col, metric, ml_suffix='_13b'):
@@ -43,3 +48,45 @@ def cascade_scored_samples(df, col, metric, ml_suffix='_13b'):
             "aurc": np.trapezoid(accept_acc, x = p_deferred), "p_del_20": p_del_20, "p_del_40": p_del_40}
 
 
+
+
+def post_hoc_oof(
+    df,
+    feature_cols,
+    target_col,
+    n_splits=5,
+    random_state=42,
+    rf_kwargs=None,
+):
+    """
+    Returns out-of-fold predictions for each row in df using 5-fold CV.
+    """
+
+    if rf_kwargs is None:
+        rf_kwargs = {}
+
+    X = df[feature_cols].values
+    y = df[target_col].values
+
+    oof_preds = np.zeros(len(df))
+
+    kf = KFold(
+        n_splits=n_splits,
+        shuffle=True,
+        random_state=random_state
+    )
+
+    for train_idx, val_idx in kf.split(X):
+        X_train, X_val = X[train_idx], X[val_idx]
+        y_train = y[train_idx]
+
+        model = LogisticRegression(
+            random_state=random_state,
+            n_jobs=-1,
+            **rf_kwargs
+        )
+
+        model.fit(X_train, y_train)
+        oof_preds[val_idx] = model.predict_proba(X_val)[:,0]
+
+    return pd.Series(oof_preds, index=df.index, name="oof_prediction")
