@@ -241,8 +241,11 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
         #list of candidate likes
         dist_likes = []
         metadata = {"lex_fragments": 0,
+                    "lex_frag_weight": 0.0,
                     "position_adjustments": 0,
-                    "semantic_collapses": 0}
+                    "position_adjust_weight": 0.0,
+                    "semantic_collapses": 0,
+                    "semantic_collapse_weight": 0.0}
         output_tokens = token_outs[-len(logits):]
 
         token_new_word = text.get_word_parts(tokenizer, output_tokens)
@@ -265,7 +268,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
             probs = likelihood.softmax_from_loglik(list(l.values()))
             sims = []
 
-            for t in tokens:
+            for j, t in enumerate(tokens):
                 if t == output_tokens[i].item():
                     #this is the output token
                     sims.append(1)
@@ -276,6 +279,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                 if collapse_prefix and text.tokens_may_collapse3(output_tokens[i:], t, tokenizer, case_sensitive=False):
                     sims.append(1)
                     metadata['lex_fragments'] += 1
+                    metadata['lex_frag_weight'] += probs[j]
                 elif position_correct and t in future_tokens:
                     distance = np.where(future_tokens == t)[0][0] + 1
                     decay = limit_decay(distance, distance_limit)
@@ -284,6 +288,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                     if sim < sim_thresh:
                         sim = 0
                         metadata['position_adjustments'] += 1
+                        metadata['position_adjust_weight'] += probs[j]
                     else:
                         sim = 1
                     sims.append(max(sim, decay))
@@ -295,6 +300,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                     else:
                         sim = 1
                         metadata['semantic_collapses'] += 1
+                        metadata["semantic_collapse_weight"] += probs[j]
                     sims.append(sim)
 
             w_sims = np.array([s*p for s, p in zip(sims, probs)])
