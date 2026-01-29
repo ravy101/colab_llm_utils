@@ -111,6 +111,23 @@ Summary:
 1. """
     return prompt
 
+def doc_to_text_cnn(doc):
+    text = doc.get("article")
+    prompt = f"Article: {text}.\nSummarize the article in three sentences.\nSummary:"
+    return prompt
+
+def doc_to_summary_cnn(doc):
+   return doc.get("highlights").strip()
+
+def doc_to_text_xsum(doc):
+    text = doc.get("article")
+    prompt = f"Text: {text}.\nSummarize the text one sentence.\nSummary:"
+    return prompt
+
+def doc_to_summary_xsum(doc):
+   return doc.get("summary").strip()
+
+
 def doc_to_summary(doc):
     return doc["summary"]
 
@@ -214,8 +231,8 @@ xsum = {
     "subset": "train",
     "task_type": "summarization",
     "dict_ans": False,
-    "doc_to_text": doc_to_text_summarization,
-    "doc_to_ans": doc_to_summary,
+    "doc_to_text": doc_to_text_xsum,
+    "doc_to_ans": doc_to_summary_xsum,
 }
 
 samsum = {
@@ -230,3 +247,14 @@ samsum = {
     "doc_to_ans": doc_to_summary,
 }
 
+cnn_dailymail = {
+    "clean_name": "CNN_Daily Mail",
+    "dataset_name": "3.0.0",
+    "dataset_location": "abisee/cnn_dailymail",
+    "options": None,
+    "subset": "train",
+    "task_type": "summarization",
+    "dict_ans": False,
+    "doc_to_text": doc_to_text_cnn,
+    "doc_to_ans": doc_to_summary_cnn,
+}
