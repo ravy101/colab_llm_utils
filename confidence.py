@@ -235,10 +235,14 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
 def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, skip_empty = False, 
                         collapse_prefix = True, tag = '', distance_limit = 5, sim_thresh = .7):
     all_dist_likes = []
+    all_metadata = []
     #for each response
     for logits, token_outs in zip(df['logit_outs' + logit_suffix], df['token_outs' + token_suffix]):
         #list of candidate likes
         dist_likes = []
+        metadata = {"lex_fragments": 0,
+                    "position_adjustments": 0,
+                    "semantic_collapses": 0}
         output_tokens = token_outs[-len(logits):]
 
         token_new_word = text.get_word_parts(tokenizer, output_tokens)
@@ -271,6 +275,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                 #if collapse_prefix and text.tokens_may_collapse2(output_tokens[i:], t, tokenizer):
                 if collapse_prefix and text.tokens_may_collapse3(output_tokens[i:], t, tokenizer, case_sensitive=False):
                     sims.append(1)
+                    metadata['lex_fragments'] += 1
                 elif position_correct and t in future_tokens:
                     distance = np.where(future_tokens == t)[0][0] + 1
                     decay = limit_decay(distance, distance_limit)
@@ -278,6 +283,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                     sim = misc.sim_cosine(chosen_emb, embed) 
                     if sim < sim_thresh:
                         sim = 0
+                        metadata['position_adjustments'] += 1
                     else:
                         sim = 1
                     sims.append(max(sim, decay))
@@ -288,6 +294,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                         sim = 0 
                     else:
                         sim = 1
+                        metadata['semantic_collapses'] += 1
                     sims.append(sim)
 
             w_sims = np.array([s*p for s, p in zip(sims, probs)])
@@ -297,16 +304,11 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
         if len(dist_likes) == 0:
             dist_likes.append(0)
 
+        all_metadata.append(metadata)
         dist_likes = np.array(dist_likes)
         all_dist_likes.append(dist_likes)
     df[tag + '_cs_likes'+token_suffix] = all_dist_likes
     df[tag + '_cs_log_chow_av'] = [likelihood.log_chow_av(l) for l in all_dist_likes]
     df[tag + '_cs_chow_av'+token_suffix] = [likelihood.chow_av(l) for l in df[tag + '_cs_likes'+token_suffix]]
     df[tag + '_cs_cvar'+token_suffix] = [likelihood.chow_cvar_uncertainty(l) for l in df[tag + '_cs_likes'+token_suffix]]
-    alpha = .4
-    q1 = tag + f'_cs_chow_quant{alpha}'+token_suffix
-    df[q1] = [likelihood.chow_quantile(l, alpha = alpha) for l in df[tag + '_cs_likes'+token_suffix]]
-    alpha = .8
-    q2 = tag + f'_cs_chow_quant{alpha}'+token_suffix
-    df[q2] = [likelihood.chow_quantile(l, alpha = alpha) for l in df[tag + '_cs_likes'+token_suffix]]
-    df[tag + f'_cs_chow_quant_m'+token_suffix]  = (df[q1]/2) + (df[q2]/2)
+    df[tag + 'metadata'] = all_metadata
