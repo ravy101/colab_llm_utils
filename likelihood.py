@@ -38,13 +38,13 @@ def log_chow_av2(probas):
 
 def log_chow_av(probas, eps = 1e-12):
     probas = np.asarray(probas)
-    probas = np.clip(probas, eps, 1.0)
+    probas = np.clip(probas, eps, 10.0)
     return np.mean(np.log(probas))
 
 def chow_prod_av(probas):
     result =  np.prod(probas)
-    if np.isnan(result) or np.isinf(result):
-       result = 0
+    #if np.isnan(result) or np.isinf(result):
+    #   result = 0
     return result
 
 def chow_sum(likelihoods):
