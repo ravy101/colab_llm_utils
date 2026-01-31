@@ -18,8 +18,9 @@ def cascade_scored_samples(df, col, metric, ml_suffix='_13b'):
     coverage = []
     gains = []
     small_correct = df[metric].mean()
+    ranks = df[col].rank(method='first')/len(df[col])
     for t in thresh:
-        defer_idx = df[col] > (1-t)
+        defer_idx = ranks > (1-t)
         #defer_idx = df_full[defer_COLUMN] <= t
         correct_7 = df[metric][~defer_idx].sum()
         correct_70 = df[metric + ml_suffix][defer_idx].sum()
