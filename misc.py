@@ -70,8 +70,8 @@ def extra_cols(df):
   df['words_per_token'] = df['word_len'] / df['output_len']
   df['log_chow_av'] = [likelihood.log_chow_av(p) for p in df['top_probas']]
   df['cvar'] = [likelihood.chow_cvar_uncertainty(p) for p in df['top_probas']]
-  df['quant_4'] = [likelihood.chow_quantile(p, alpha=.4) for p in df['top_probas']]
-  df['normed_quantile'] = norm_series(df['quant_4'], invert = True)
+  df['quant_5'] = [likelihood.chow_quantile(p, alpha=.5) for p in df['top_probas']]
+  df['normed_quantile'] = norm_series(df['quant_5'], invert = True)
   df['normed_av'] = norm_series(df['chow_av'], invert = True)
   df['normed_sum'] = norm_series(df['chow_sum'], invert = True)
 
