@@ -38,7 +38,7 @@ def log_chow_av2(probas):
 
 def log_chow_av(probas, eps = 1e-12):
     probas = np.asarray(probas)
-    probas = np.clip(probas, eps, 10.0)
+    probas = np.clip(probas, eps, 1.0)
     return np.mean(np.log(probas))
 
 def chow_prod_av(probas):
@@ -61,6 +61,15 @@ def chow_quantile(likelihoods, alpha = .5):
 
 def ll_to_proba(likelihoods):
     return np.exp(likelihoods)/np.sum(np.exp(likelihoods))
+
+def temp_rescale(series, temp):
+    def rescale_sequence(seq):
+        return [
+            {tok: logit / temp for tok, logit in step.items()}
+            for step in seq
+        ]
+
+    return series.apply(rescale_sequence)
 
 def chow_cvar_uncertainty(
     probas,
