@@ -63,13 +63,50 @@ def ll_to_proba(likelihoods):
     return np.exp(likelihoods)/np.sum(np.exp(likelihoods))
 
 def temp_rescale(series, temp):
-    def rescale_sequence(seq):
-        return [
-            {tok: logit / temp for tok, logit in step.items()}
-            for step in seq
-        ]
+    """
+    Parameters
+    ----------
+    series : pd.Series
+        Each element is a list of dicts:
+        [{token_id: logit, ...}, ...]
+    temp : float
+        Temperature (> 0)
 
-    return series.apply(rescale_sequence)
+    Returns
+    -------
+    scaled_logits : pd.Series
+        Same structure as input, logits divided by temp
+    max_token_probs : pd.Series
+        Each element is a list of floats:
+        softmax probability of the most likely token at each step
+    """
+    assert temp > 0, "Temperature must be positive"
+
+    def process_sequence(seq):
+        scaled_seq = []
+        max_probs = []
+
+        for step in seq:
+            # scale logits
+            scaled = {tok: logit / temp for tok, logit in step.items()}
+            scaled_seq.append(scaled)
+
+            # compute softmax prob of argmax token
+            logits = np.array(list(scaled.values()))
+            logits = logits - logits.max()  # numerical stability
+            probs = np.exp(logits)
+            probs /= probs.sum()
+
+            max_probs.append(probs.max())
+
+        return scaled_seq, max_probs
+
+    out = series.apply(process_sequence)
+
+    scaled_logits = out.apply(lambda x: x[0])
+    max_token_probs = out.apply(lambda x: x[1])
+
+    return scaled_logits, max_token_probs
 
 def chow_cvar_uncertainty(
     probas,
