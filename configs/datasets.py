@@ -82,15 +82,8 @@ def doc_to_text_hotpot(item):
     context = build_gold_context(item)
     question = item["question"]
 
-    prompt = (
-        """You are a question answering system.
-Answer the question using the information provided in the context.
-Do not include any detail, notes or explanation.
-The answer should be short (one or two words, or a short phrase).\n"""
-        f"Context:\n{context}\n"
-        f"Question:\n{question}\n"
-        "Answer:\n"
-    )
+    prompt =  f"Answer the question using the information provided in the context. Do not include any detail, notes or explanation, only the required answer.\nContext: {context}\nQuestion: {question}\nAnswer:"
+  
     return prompt
 
 def doc_to_ans_hotpot(item):
