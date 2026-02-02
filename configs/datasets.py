@@ -85,7 +85,6 @@ def doc_to_text_hotpot(item):
     prompt = (
         """You are a question answering system.
 Answer the question using the information provided in the context.
-If the answer is not in the context, say "Unknown".
 Answer must contain at least one token.
 The answer should be short (one or two words, or a short phrase).\n"""
         f"Context:\n{context}\n"
