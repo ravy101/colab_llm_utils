@@ -21,6 +21,20 @@ llama7b = {"model_name": "meta-llama/Llama-2-7b-hf",
                  "block_limit": None
                  }
 
+llama7b = {"model_name": "meta-llama/Llama-2-7b-hf",
+                 "hf_model_func": AutoModelForCausalLM,
+                 "bnb_config": double_quant_cfg,
+                 #"bnb_config": None,
+                 "block_limit": None
+                 }
+
+llama7b = {"model_name": "meta-llama/Llama-2-7b-hf",
+                 "hf_model_func": AutoModelForCausalLM,
+                 "bnb_config": double_quant_cfg,
+                 #"bnb_config": None,
+                 "block_limit": None
+                 }
+
 llama13b = {"model_name": "meta-llama/Llama-2-13b-hf",
                  "hf_model_func": AutoModelForCausalLM,
                  "bnb_config": single_quant_cfg,
@@ -44,7 +58,7 @@ llama13b_chat = {"model_name": "meta-llama/Llama-2-13b-chat-hf",
 
 llama70b_chat = {"model_name": "meta-llama/Llama-2-70b-chat-hf",
                  "hf_model_func": AutoModelForCausalLM,
-                 "bnb_config": single_quant_cfg,
+                 "bnb_config": double_quant_cfg,
                  "block_limit": None
                  }
 
@@ -78,13 +92,13 @@ llama3_8b = {"model_name": "meta-llama/Llama-3.1-8B",
 
 llama3_70b_chat = {"model_name": "meta-llama/Llama-3.1-70B-Instruct",
                  "hf_model_func": AutoModelForCausalLM,
-                 "bnb_config": single_quant_cfg,
+                 "bnb_config": double_quant_cfg,
                  "block_limit": None
                  }
 
 llama3_70b = {"model_name": "meta-llama/Llama-3.1-70B",
                  "hf_model_func": AutoModelForCausalLM,
-                 "bnb_config": single_quant_cfg,
+                 "bnb_config": double_quant_cfg,
                  "block_limit": None
                  }
 
