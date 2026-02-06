@@ -112,7 +112,14 @@ Summary:
 
 def doc_to_text_cnn(doc):
     text = doc.get("article")
-    prompt = f"Article: {text}.\nSummarize the article concisely in three sentences. Do not copy sentences verbatim. Focus on the main events and outcomes.\nSummary:"
+    prompt = f"""Article:
+{text}
+
+Write a concise summary of the article in about three sentences.
+Paraphrase the content and do not reuse phrasing from the article.
+Focus on the main events and outcomes.
+
+Summary:"""
     return prompt
 
 def doc_to_summary_cnn(doc):
