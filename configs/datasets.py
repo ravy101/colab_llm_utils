@@ -82,8 +82,15 @@ def doc_to_text_hotpot(item):
     context = build_gold_context(item)
     question = item["question"]
 
-    prompt =  f"Answer the question using the information provided in the context. Do not include any detail, notes or explanation, only the required answer.\nContext: {context}\nQuestion: {question}\nAnswer:"
-  
+    prompt = (
+        """You are a question answering system.
+Answer the question using the information provided in the context.
+Answer must contain at least one token.
+The answer should be short (one or two words, or a short phrase).\n"""
+        f"Context:\n{context}\n"
+        f"Question:\n{question}\n"
+        "Answer:\n"
+    )
     return prompt
 
 def doc_to_ans_hotpot(item):
@@ -105,7 +112,7 @@ Summary:
 
 def doc_to_text_cnn(doc):
     text = doc.get("article")
-    prompt = f"Article: {text}.\nSummarize the article in three sentences.\nSummary:"
+    prompt = f"Article: {text}.\nSummarize the article concisely in three sentences. Do not copy sentences verbatim. Focus on the main events and outcomes.\nSummary:"
     return prompt
 
 def doc_to_summary_cnn(doc):
@@ -113,7 +120,7 @@ def doc_to_summary_cnn(doc):
 
 def doc_to_text_xsum(doc):
     text = doc.get("article")
-    prompt = f"Text: {text}.\nSummarize the text one sentence.\nSummary:"
+    prompt = f"Text: {text}.\nSummarize the article concisely in three sentences. Do not copy sentences verbatim. Focus on the main events and outcomes.\nSummary:"
     return prompt
 
 def doc_to_summary_xsum(doc):
