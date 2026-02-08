@@ -77,7 +77,7 @@ def extra_cols(df):
 
 
 def cuda_duignostics():
-   print("===== PYTHON =====")
+    print("===== PYTHON =====")
     import sys, platform
     print("Python:", sys.version)
     print("Executable:", sys.executable)
