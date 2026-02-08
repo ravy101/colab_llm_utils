@@ -5,8 +5,9 @@ import math
 import networkx as nx
 import matplotlib.pyplot as plt
 from . import misc
+from . import text
 
-def visualize_logit_tree(logits_per_step, tokenizer, emb_dict, chosen_tokens, top_k=5):
+def visualize_logit_tree(logits_per_step, tokenizer, emb_dict, chosen_tokens, top_k=5, thresh = .5):
     """
     Visualize candidate token branches as a tree.
 
@@ -56,9 +57,17 @@ def visualize_logit_tree(logits_per_step, tokenizer, emb_dict, chosen_tokens, to
                 embed = emb_dict[token_id].squeeze()
                 chosen_embed = emb_dict[output_tokens[step]].squeeze()
                 cs = misc.sim_cosine(chosen_embed, embed)
+                
+                
                 label = label + f"\nCS: {cs:.2f}"
                 G.add_node(node_name, label=label, step=step)
-                node_colours.append("lightblue")
+                
+                colour = "lightblue"
+                if cs > thresh:
+                    colour = "green"
+                if text.tokens_may_collapse3(output_tokens[step:], token_id, tokenizer):
+                    colour = "red"
+                node_colours.append(colour)
 
               if step == 0:
                   G.add_edge(root, node_name)
@@ -90,7 +99,7 @@ def visualize_logit_tree(logits_per_step, tokenizer, emb_dict, chosen_tokens, to
     plt.show()
 
 
-def compare_logit_tree(logits_per_step, tokenizer, emb_dict, chosen_tokens, top_k=5, ax= None):
+def compare_logit_tree(logits_per_step, tokenizer, emb_dict, chosen_tokens, top_k=5, ax= None, thresh = .5):
     """
     Visualize candidate token branches as a tree.
 
@@ -142,7 +151,10 @@ def compare_logit_tree(logits_per_step, tokenizer, emb_dict, chosen_tokens, top_
                 cs = misc.sim_cosine(chosen_embed, embed)
                 label = label + f"\nCS: {cs:.2f}"
                 G.add_node(node_name, label=label, step=step)
-                node_colours.append("lightblue")
+                colour = "lightblue"
+                if cs > thresh:
+                    colour = "green"
+                node_colours.append(colour)
 
               if step == 0:
                   G.add_edge(root, node_name)
@@ -236,7 +248,7 @@ def calibration_plots3(df, correct_col, columns, bins= 10, fixed_lim = True, plo
     ax.set_xticks(ticks =  range(len(df_calib[conf_column+'_mean'])),labels = [f"{100*b:2.0f}%" for b in bins[:-1]], rotation=90)
 
 
-def calibration_plot(df, correct_col, conf_column, bins= 10, fixed_lim = True, plot_title = " ", invert = False, header_override = ['Max Probability', 'Other']):
+def calibration_plot(df, correct_col, conf_column, bins= 10, fixed_lim = True, plot_title = " ", invert = False, prop_thresh = .00, header_override = ['Max Probability', 'Other']):
     i = bins+1
     if fixed_lim:
         bmin = 0
@@ -261,6 +273,7 @@ def calibration_plot(df, correct_col, conf_column, bins= 10, fixed_lim = True, p
     df_calib["pred_bin"] = df_calib["pred_bin"].astype(int)
     df_calib.sort_values("pred_bin", inplace=True, ascending=True)
     df_calib.reset_index(drop=True, inplace=True)
+    #df_calib < prop_thresh
     df_calib.fillna(value = 0, inplace = True)
     f, axes = plt.subplots(2, figsize=(5,10))
     ax = axes[1]

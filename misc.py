@@ -75,3 +75,73 @@ def extra_cols(df):
   df['normed_av'] = norm_series(df['chow_av'], invert = True)
   df['normed_sum'] = norm_series(df['chow_sum'], invert = True)
 
+
+def cuda_duignostics():
+   print("===== PYTHON =====")
+    import sys, platform
+    print("Python:", sys.version)
+    print("Executable:", sys.executable)
+    print("Platform:", platform.platform())
+
+    print("\n===== CUDA / GPU =====")
+    import subprocess
+    try:
+        print(subprocess.check_output(["nvidia-smi"], text=True))
+    except Exception as e:
+        print("nvidia-smi failed:", e)
+
+    print("\n===== TORCH =====")
+    import torch
+    print("torch:", torch.__version__)
+    print("torch cuda version:", torch.version.cuda)
+    print("cuda available:", torch.cuda.is_available())
+    if torch.cuda.is_available():
+        print("GPU name:", torch.cuda.get_device_name(0))
+        free, total = torch.cuda.mem_get_info()
+        print(f"VRAM free / total: {free/1e9:.2f} GB / {total/1e9:.2f} GB")
+
+    print("\n===== TRANSFORMERS =====")
+    import transformers
+    print("transformers:", transformers.__version__)
+    print("transformers path:", transformers.__file__)
+
+    print("\n===== ACCELERATE =====")
+    import accelerate
+    print("accelerate:", accelerate.__version__)
+    print("accelerate path:", accelerate.__file__)
+
+    print("\n===== BITSANDBYTES =====")
+    import bitsandbytes
+    print("bitsandbytes:", bitsandbytes.__version__)
+    try:
+        import bitsandbytes as bnb
+        print("bitsandbytes CUDA test:")
+        subprocess.run(["python", "-m", "bitsandbytes"], check=False)
+    except Exception as e:
+        print("bitsandbytes import error:", e)
+
+    print("\n===== NUMPY =====")
+    import numpy
+    print("numpy:", numpy.__version__)
+    print("numpy path:", numpy.__file__)
+
+    print("\n===== PIP FREEZE (relevant packages) =====")
+    import pkg_resources
+    pkgs = sorted(
+        p for p in pkg_resources.working_set
+        if any(k in p.project_name.lower() for k in [
+            "torch", "transformers", "accelerate", "bitsandbytes",
+            "numpy", "scipy", "flash", "xformers"
+        ])
+    )
+    for p in pkgs:
+        print(p)
+
+    print("\n===== CUDA ALLOC CONF =====")
+    import os
+    print("PYTORCH_CUDA_ALLOC_CONF =", os.environ.get("PYTORCH_CUDA_ALLOC_CONF"))
+
+
+    print("BnB CONFIG")
+    print(model_config['bnb_config'])
+    print("\n===== DONE =====")
