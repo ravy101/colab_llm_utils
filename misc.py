@@ -76,6 +76,18 @@ def extra_cols(df):
   df['normed_sum'] = norm_series(df['chow_sum'], invert = True)
 
 
+def is_number(s):
+    """
+    Checks if the string 's' can be converted to a float (int, float, 
+    negative numbers, scientific notation).
+    Returns True if it's a number, False otherwise.
+    """
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
 def cuda_duignostics():
     print("===== PYTHON =====")
     import sys, platform

@@ -249,6 +249,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
         output_tokens = token_outs[-len(logits):]
 
         token_new_word = text.get_word_parts(tokenizer, output_tokens)
+        
 
         #for each token in sequence
         for i, l in enumerate(logits):
@@ -256,7 +257,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
             if skip_stopwords and output_tokens[i].item() in stopword_ids:
                 continue
                 
-
+            output_numeric = misc.is_number(tokenizer.decode(output_tokens[i], clean_up_tokenization_spaces=True).strip())
             chosen_emb = emb_dict[output_tokens[i].item()].squeeze()
             future_tokens = output_tokens[i+1:]
 
@@ -271,6 +272,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                     sims.append(1)
                     continue
 
+                both_numeric = output_numeric and misc.is_number(tokenizer.decode(t, clean_up_tokenization_spaces=True).strip())
                 #if collapse_prefix and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
                 #if collapse_prefix and text.tokens_may_collapse2(output_tokens[i:], t, tokenizer):
                 if collapse_prefix and text.tokens_may_collapse3(output_tokens[i:], t, tokenizer, case_sensitive=False, allow_empty= allow_empty):
@@ -282,7 +284,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                     decay = limit_decay(distance, distance_limit)
                     embed = emb_dict[t].squeeze()
                     sim = misc.sim_cosine(chosen_emb, embed) 
-                    if sim < sim_thresh:
+                    if (sim < sim_thresh) or both_numeric:
                         sim = 0
                         metadata['position_adjustments'] += 1
                         metadata['position_adjust_weight'] += probs[j]
@@ -292,7 +294,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                 else:
                     embed = emb_dict[t].squeeze()
                     sim = misc.sim_cosine(chosen_emb, embed)
-                    if sim < sim_thresh:
+                    if (sim < sim_thresh) or both_numeric:
                         sim = 0 
                     else:
                         sim = 1
