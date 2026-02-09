@@ -120,8 +120,6 @@ Summary:
 
 def doc_to_text_cnn(doc):
     text = doc.get("article")
-    text_sample = 
-    summary_sample = cnn_samples[1]["highlights"]
     prompt = f""" You are a news summarization assistant.
 
     Article:
