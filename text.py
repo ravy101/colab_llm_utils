@@ -47,7 +47,7 @@ def tokens_may_collapse2(chosen_tokens, token_b_id, tokenizer, case_sensitive=Tr
 
     return a_str.startswith(b_str) or b_str.startswith(a_str)
 
-def tokens_may_collapse3(chosen_tokens, token_b_id, tokenizer, case_sensitive=True):
+def tokens_may_collapse3(chosen_tokens, token_b_id, tokenizer, case_sensitive=True, allow_empty = True):
     """
     Return True if token_a and token_b could represent the same string
     after continuing (i.e., one is a prefix of the other).
@@ -70,6 +70,8 @@ def tokens_may_collapse3(chosen_tokens, token_b_id, tokenizer, case_sensitive=Tr
         a_str = a_str.replace(s, ' ')
         b_str = b_str.replace(s, ' ')
 
+    if not allow_empty and len(b_str.strip()) == 0:
+        return False
     return a_str.startswith(b_str)
 
 def is_whitespace(token_id, tokenizer):
