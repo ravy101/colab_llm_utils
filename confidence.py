@@ -232,7 +232,7 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
     
 
 
-def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, allow_empty = True, 
+def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, allow_empty = True, number_exception = False,
                         collapse_prefix = True, tag = '', distance_limit = 5, sim_thresh = .7):
     all_dist_likes = []
     all_metadata = []
@@ -272,7 +272,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                     sims.append(1)
                     continue
 
-                both_numeric = output_numeric and misc.is_number(tokenizer.decode(t, clean_up_tokenization_spaces=True).strip())
+                both_numeric = number_exception and output_numeric and misc.is_number(tokenizer.decode(t, clean_up_tokenization_spaces=True).strip())
                 #if collapse_prefix and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
                 #if collapse_prefix and text.tokens_may_collapse2(output_tokens[i:], t, tokenizer):
                 if collapse_prefix and text.tokens_may_collapse3(output_tokens[i:], t, tokenizer, case_sensitive=False, allow_empty= allow_empty):
