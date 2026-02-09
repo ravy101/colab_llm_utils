@@ -120,14 +120,23 @@ Summary:
 
 def doc_to_text_cnn(doc):
     text = doc.get("article")
-    text_sample = cnn_samples[0]["article"]
-    summary_sample = cnn_samples[0]["highlights"]
+    text_sample = 
+    summary_sample = cnn_samples[1]["highlights"]
     prompt = f""" You are a news summarization assistant.
 
     Article:
-{text_sample}
+{cnn_samples[1]["article"]}
 
-Summary: {summary_sample}
+Summary: {cnn_samples[1]["highlights"]}
+
+--------------------------------------
+
+Article:
+{cnn_samples[2]["article"]}
+
+Summary: {cnn_samples[2]["highlights"]}
+
+--------------------------------------
 
 Article:
 {text}
