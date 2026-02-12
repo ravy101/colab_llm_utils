@@ -302,9 +302,9 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                         metadata["semantic_collapse_weight"] += probs[j]
                     sims.append(sim)
 
-            w_sims = np.array([s*p for s, p in zip(sims, probs)])
+            w_sims = np.array([s*min(p,clip) for s, p in zip(sims, probs)])
             w_sum = w_sims.sum(axis=0)
-            dist_likes.append(min(max(w_sum, .01), clip))
+            dist_likes.append(max(w_sum, .01))
 
         if len(dist_likes) == 0:
             dist_likes.append(0)
