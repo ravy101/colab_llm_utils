@@ -143,7 +143,7 @@ Write a very short summary of the article in less than 100 words.
 Paraphrase the content.
 Focus on the main events and outcomes.
 
-Summary:"""
+Summary: """
     return prompt
 
 def doc_to_summary_cnn(doc):
