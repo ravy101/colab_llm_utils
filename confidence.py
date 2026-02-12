@@ -233,7 +233,7 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
 
 
 def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, allow_empty = True, number_exception = False,
-                        collapse_prefix = True, clip = .98, tag = '', distance_limit = 5, sim_thresh = .7):
+                        collapse_prefix = True, clip = 1, tag = '', distance_limit = 5, sim_thresh = .7):
     all_dist_likes = []
     all_metadata = []
     #for each response
