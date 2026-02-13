@@ -8,6 +8,33 @@ cnn_samples = [{"article": """(CNN)French striker Bafetimbi Gomis, who has a his
               {"article": """(CNN)The flight crew of the Delta Air Lines plane that skidded into a fence at LaGuardia Airport last week cited brake issues during the landing, according to an update on Monday from the NTSB. The crew said they did not sense any deceleration from the wheel brake upon landing, despite the auto brakes being set to "max," according to an ongoing investigation by the National Transportation Safety Board. The runway appeared all white in the moments before landing, according to the report. They based their decision to land after receiving a brake action report of "good" from air traffic control, the NTSB said. "The automatic spoilers did not deploy," the crew told the NTSB, "but that the first officer quickly deployed them manually." The captain said he was unable to stop the aircraft from drifting left, according to the report. The Boeing MD-88 sustained significant damage to the left wing, flight spoilers, the nose of the plane and the left wing fuel tank, according to the NTSB. Delta Flight 1086 departed from Atlanta shortly after 9 a.m. Thursday. LaGuardia was dealing with snow and freezing fog as the flight approached its destination about two hours later. The aircraft briefly circled New York because of issues with snow and ice before touching down shortly after 11 a.m. The plane slid off the runway with its nose busting through a fence before skidding to a halt mere feet from frigid waters. Twenty three passengers received minor injuries, and others were transported to the hospital for evaluation. An NTSB meteorologist is examining the weather conditions at the time of the accident, said the report. The cause of the accident has not been determined.""",
                "highlights": """Delta Air Lines Flight 1086 skidded into a fence last week at a LaGuardia Airport beset by winter weather . The NTSB says the crew reported they did not sense any deceleration from the wheel brake upon landing. There were some minor injuries."""}]
 
+xsum_samples = [{"article": """Four police officers were injured in the incident on Friday night.
+  A man, aged 19, and a boy, aged 16, have been charged with six counts of aggravated vehicle taking.
+  They are due to appear before Belfast Magistrates' Court on Monday.
+  The 19-year-old man has also been charged with driving while disqualified and using a motor vehicle without insurance.""",
+  "summary": """Two teenagers have been charged in connection with an incident in west Belfast in which a car collided with two police vehicles."""},
+  {"article": """The think tank said the city's 1,536 schools needed to save £360m in the first year if the government's National Funding Formula (NFF) plan goes ahead.
+  The amount is the equivalent of 12,857 qualified teachers, on an average salary of £28,000.
+  The government said London was the highest funded part of the country.
+  It added that under the plans, which are under consultation, inner-city schools would be allocated 30% more money per pupil than the national average.
+  But London Councils, which represents the city's 32 boroughs and the City, said no school would gain enough funding from the NFF to compensate for increased cost pressures from inflation, higher pension contributions and national insurance.
+  Ministers said the new formula was needed to tackle uneven levels of funding across England, with the best funded areas getting more than £6,300 per pupil per year, while the worst-funded averaging £4,200.
+  It said the funding cut was on top of National Audit Office figures which showed England schools faced an eight per cent real-terms cut per pupil by 2019-20 because it wider cost pressures.
+  In a statement, London Councils said: "At a time when UK schools are seen as underperforming by international standards, and when businesses based in London are facing massive uncertainty about recruiting skilled staff, there is an urgent need to invest in schools in London and across the rest of the country."
+  It added: "Without the right qualifications and skills, London's children will be unable to access jobs and contribute to the national economy. Over 60% of jobs in inner London require a degree and around 45% of jobs in the rest of the capital require a degree." """,
+  "summary": """About 70% of London schools could face budget cuts under government plans to change how they are funded, according to London Councils."""},
+  {"article": """The referendum will take place on 10 March, but Bath Conservative MP Ben Howlett said he was concerned about a "lack of awareness" about the issue.
+  Mr Howlett also said he is worried about the public's level of engagement.
+  Bath and North East Somerset Council said the referendum had been publicised in press releases and tweets.
+  It also said it was the subject of a two-page article in the winter edition of the council magazine which was distributed to all households in the region.
+  A further news release and polling cards will also be sent out to all households this week, the authority added.
+  Supporters of the referendum say Bath needs a mayor to give local government more visibility.
+  Directly elected mayors were created by the Local Government Act 2000 as one option for local government, as long as the idea was backed in a referendum.
+  Mr Howlett said he was "personally concerned" that an elected mayor was not appropriate for an area "as diverse" as Bath and North East Somerset, and that it could "lead to an increase in the cost of local politics".
+  "The level of misinformation on this issue is worrying - many people seem to still believe this is about a mayor of Bath and not understanding it would cover all of Bath and North East Somerset.
+  "I hope in the coming weeks more information will be forthcoming to enable residents to make an informed decision," he added.""",
+  "summary": """An MP has criticised "the level of misinformation" about a referendum on an elected mayor for Bath and North East Somerset."""}]
+
 
 def doc_to_text_wmt_fr(item, from_lang = 'fr', to_lang = 'en'):
   return f"{languages[from_lang]} source: {item['translation'][from_lang]}\n{languages[to_lang]} translation:"
@@ -150,8 +177,31 @@ def doc_to_summary_cnn(doc):
    return doc.get("highlights").strip()
 
 def doc_to_text_xsum(doc):
-    text = doc.get("article")
-    prompt = f"Text: {text}.\nSummarize the article concisely in three sentences. Do not copy sentences verbatim. Focus on the main events and outcomes.\nSummary:"
+    text = doc.get("document")
+    prompt = f""" You are a news summarization assistant.
+
+    Article:
+{xsum_samples[1]["article"]}
+
+Summary: {xsum_samples[1]["summary"]}
+
+--------------------------------------
+
+Article:
+{xsum_samples[2]["article"]}
+
+Summary: {xsum_samples[2]["summary"]}
+
+--------------------------------------
+
+Article:
+{text}
+
+Write a very short, one sentence summary of the article.
+Paraphrase the content, do not copy it.
+Focus on the main events and outcomes.
+
+Summary:"""
     return prompt
 
 def doc_to_summary_xsum(doc):
