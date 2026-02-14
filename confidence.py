@@ -232,7 +232,7 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
     
 
 
-def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, allow_empty = True, number_exception = False,
+def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, allow_empty = True, number_exception = False,
                         collapse_prefix = True, clip = 1, tag = '', pos_filter = False, distance_limit = 5, sim_thresh = .7):
     all_dist_likes = []
     all_metadata = []
@@ -249,7 +249,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                     "semantic_collapse_weight": 0.0}
         output_tokens = token_outs[-len(logits):]
 
-        token_new_word = text.get_word_parts(tokenizer, output_tokens)
+        #token_new_word = text.get_word_parts(tokenizer, output_tokens)
         
 
         #for each token in sequence
@@ -258,10 +258,9 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
             if skip_stopwords and output_tokens[i].item() in stopword_ids:
                 continue
                 
-            output_text = tokenizer.decode(output_tokens[i], clean_up_tokenization_spaces=True).strip()
-            output_numeric = misc.is_number(output_text)
+            output_numeric = number_exception and misc.is_number(tokenizer.decode(output_tokens[i], clean_up_tokenization_spaces=True).strip())
 
-            if text.get_pos(output_text) in skip_pos and pos_filter:
+            if pos_filter and pos_dict[output_tokens[i].item()] in skip_pos:
                 allow_collapse = False
             else:
                 allow_collapse = True
