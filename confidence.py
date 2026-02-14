@@ -233,9 +233,10 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
 
 
 def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, allow_empty = True, number_exception = False,
-                        collapse_prefix = True, clip = 1, tag = '', distance_limit = 5, sim_thresh = .7):
+                        collapse_prefix = True, clip = 1, tag = '', pos_filter = False, distance_limit = 5, sim_thresh = .7):
     all_dist_likes = []
     all_metadata = []
+    skip_pos = ["DET", "CONJ", "ADP", "PART", "PUNCT", "SPACE"]
     #for each response
     for logits, token_outs in zip(df['logit_outs' + logit_suffix], df['token_outs' + token_suffix]):
         #list of candidate likes
@@ -257,7 +258,15 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
             if skip_stopwords and output_tokens[i].item() in stopword_ids:
                 continue
                 
-            output_numeric = misc.is_number(tokenizer.decode(output_tokens[i], clean_up_tokenization_spaces=True).strip())
+            output_text = tokenizer.decode(output_tokens[i], clean_up_tokenization_spaces=True).strip()
+            output_numeric = misc.is_number(output_text)
+
+            if text.get_pos(output_text) in skip_pos and pos_filter:
+                allow_collapse = False
+            else:
+                allow_collapse = True
+
+
             chosen_emb = emb_dict[output_tokens[i].item()].squeeze()
             future_tokens = output_tokens[i+1:]
 
@@ -275,7 +284,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                 both_numeric = number_exception and output_numeric and misc.is_number(tokenizer.decode(t, clean_up_tokenization_spaces=True).strip())
                 #if collapse_prefix and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
                 #if collapse_prefix and text.tokens_may_collapse2(output_tokens[i:], t, tokenizer):
-                if collapse_prefix and text.tokens_may_collapse3(output_tokens[i:], t, tokenizer, case_sensitive=False, allow_empty= allow_empty):
+                if collapse_prefix and text.tokens_may_collapse3(output_tokens[i:], t, tokenizer, case_sensitive=False, allow_empty= allow_empty) and allow_collapse:
                     sims.append(1)
                     metadata['lex_fragments'] += 1
                     metadata['lex_frag_weight'] += probs[j]
@@ -294,7 +303,7 @@ def get_cs_thresh_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix
                 else:
                     embed = emb_dict[t].squeeze()
                     sim = misc.sim_cosine(chosen_emb, embed)
-                    if (sim < sim_thresh) or both_numeric:
+                    if (sim < sim_thresh) or both_numeric or not allow_collapse:
                         sim = 0 
                     else:
                         sim = 1
