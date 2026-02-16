@@ -286,7 +286,7 @@ def calibration_plot(df, correct_col, conf_column, bins= 10, fixed_lim = True, p
     ax= axes[0]
     sns.barplot(data=df_calib.reset_index(drop=True), x='pred_bin', y=correct_col + '_mean', ax=ax, hue=2, legend=None)
     ax.plot([0,i-2],[0, 1], c='teal',linestyle='dashed' )
-    plt.title(plot_title)
+    ax.set_title(plot_title)
     ax.set_xlabel("Confidence")
     ax.set_ylabel("Accuracy")
     ax.set_xticks(ticks =  range(len(df_calib[conf_column+'_mean'])),labels = [f"{100*b:2.0f}%" for b in bins[:-1]], rotation=90)
