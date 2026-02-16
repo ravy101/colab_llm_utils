@@ -247,7 +247,8 @@ def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], lo
                     "position_adjust_weight": 0.0,
                     "semantic_collapses": 0,
                     "semantic_collapse_weight": 0.0,
-                    "change_list" = []
+                    "change_list": [],
+                    "pos_list": []
                     }
         output_tokens = token_outs[-len(logits):]
 
@@ -316,7 +317,7 @@ def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], lo
             w_sims = np.array([s*min(p,clip) for s, p in zip(sims, probs)])
             w_sum = w_sims.sum(axis=0)
             metadata['change_list'].append(w_sum - output_prob)
-            metadata['change_pos'].append(pos_dict[output_tokens[i].item()])
+            metadata['pos_list'].append(pos_dict[output_tokens[i].item()])
             dist_likes.append(max(w_sum, .01))
 
         if len(dist_likes) == 0:
