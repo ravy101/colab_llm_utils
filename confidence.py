@@ -236,7 +236,7 @@ def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], lo
                         collapse_prefix = True, clip = 1, tag = '', pos_filter = False, distance_limit = 5, sim_thresh = .7):
     all_dist_likes = []
     all_metadata = []
-    skip_pos = ["DET", "CONJ", "ADP", "PART", "PUNCT", "SPACE", "X"]
+    skip_pos = ["PUNCT", "SPACE", "NUM", "PROPN"]
     #for each response
     for logits, token_outs in zip(df['logit_outs' + logit_suffix], df['token_outs' + token_suffix]):
         #list of candidate likes
