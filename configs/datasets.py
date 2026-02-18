@@ -178,6 +178,9 @@ def doc_to_summary_cnn(doc):
 
 def doc_to_text_xsum(doc):
     text = doc.get("document")
+    if len(text) > 12000:
+      print("Cropping *************************************")
+      text = text[:12000]
     prompt = f""" You are a news summarization assistant.
 
     Article:
