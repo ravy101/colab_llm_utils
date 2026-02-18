@@ -233,13 +233,10 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
 
 
 def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, allow_empty = True, number_exception = False,
-                        collapse_prefix = True, clip = 1, tag = '', pos_filter = False, distance_limit = 5, sim_thresh = .7, skip_pos_types = None):
+                        collapse_prefix = True, clip = 1, tag = '', pos_filter = False, distance_limit = 5, sim_thresh = .5, sem_pos_filt = [], lex_pos_filt=[]):
     all_dist_likes = []
     all_metadata = []
-    #skip_pos = ["PUNCT", "SPACE", "NUM"]
-    if skip_pos_types is None:
-        skip_pos = ["PUNCT", "SPACE", "NUM"]
-    skip_sem = ["PUNCT", "SPACE", "NUM"]
+
     #for each response
     for logits, token_outs in zip(df['logit_outs' + logit_suffix], df['token_outs' + token_suffix]):
         #list of candidate likes
@@ -266,11 +263,8 @@ def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], lo
                 
             output_numeric = number_exception and misc.is_number(tokenizer.decode(output_tokens[i], clean_up_tokenization_spaces=True).strip())
 
-            if pos_filter and pos_dict[output_tokens[i].item()] in skip_pos:
-                allow_collapse = False
-            else:
-                allow_collapse = True
-
+            allow_sem_collapse =  pos_dict[output_tokens[i].item()] not in sem_pos_filt
+            allow_lex_collapse = pos_dict[output_tokens[i].item()] not in lex_pos_filt
 
             chosen_emb = emb_dict[output_tokens[i].item()].squeeze()
             future_tokens = output_tokens[i+1:]
@@ -287,35 +281,25 @@ def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], lo
                     sims.append(1)
                     continue
 
-                both_numeric = number_exception and output_numeric and misc.is_number(tokenizer.decode(t, clean_up_tokenization_spaces=True).strip())
-                #if collapse_prefix and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
-                #if collapse_prefix and text.tokens_may_collapse2(output_tokens[i:], t, tokenizer):
-                if collapse_prefix and text.tokens_may_collapse3(output_tokens[i:], t, tokenizer, case_sensitive=False, allow_empty= allow_empty):
-                    sims.append(1)
+                sim_result = 0
+                if collapse_prefix and allow_lex_collapse and text.tokens_may_collapse3(output_tokens[i:], t, tokenizer, case_sensitive=False, allow_empty= allow_empty):
+                    sim_result = 1
                     metadata['lex_fragments'] += 1
                     metadata['lex_frag_weight'] += probs[j]
                 elif position_correct and t in future_tokens:
                     distance = np.where(future_tokens == t)[0][0] + 1
                     decay = limit_decay(distance, distance_limit)
-                    embed = emb_dict[t].squeeze()
-                    sim = misc.sim_cosine(chosen_emb, embed) 
-                    if (sim < sim_thresh) or both_numeric:
-                        sim = 0
-                        metadata['position_adjustments'] += 1
-                        metadata['position_adjust_weight'] += probs[j]
-                    else:
-                        sim = 1
-                    sims.append(max(sim, decay))
-                else:
+                    sim_result = decay
+                    metadata['position_adjustments'] += 1
+                    metadata['position_adjust_weight'] += probs[j]
+                elif allow_sem_collapse:
                     embed = emb_dict[t].squeeze()
                     sim = misc.sim_cosine(chosen_emb, embed)
-                    if (sim < sim_thresh) or both_numeric or not allow_collapse:
-                        sim = 0 
-                    else:
-                        sim = 1
+                    if (sim >= sim_thresh):
+                        sim_result = 1
                         metadata['semantic_collapses'] += 1
                         metadata["semantic_collapse_weight"] += probs[j]
-                    sims.append(sim)
+                sims.append(sim_result)
 
             w_sims = np.array([s*min(p,clip) for s, p in zip(sims, probs)])
             w_sum = w_sims.sum(axis=0)
