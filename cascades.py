@@ -58,6 +58,7 @@ def post_hoc_oof(
     n_splits=5,
     random_state=42,
     rf_kwargs=None,
+    model_type = LogisticRegression
 ):
     """
     Returns out-of-fold predictions for each row in df using 5-fold CV.
@@ -86,9 +87,8 @@ def post_hoc_oof(
         X_train, X_val = X[train_idx], X[val_idx]
         y_train = y[train_idx]
 
-        model = LogisticRegression(
+        model = model_type(
             random_state=random_state,
-            n_jobs=-1,
             **rf_kwargs
         )
 

@@ -39,6 +39,7 @@ def get_rouge():
         _rouge = evaluate.load("rouge")
     return _rouge
 
+
 def get_comet():
     """Return the COMET scorer (lazy loaded)."""
     global _comet
