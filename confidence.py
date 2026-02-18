@@ -233,10 +233,13 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
 
 
 def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, allow_empty = True, number_exception = False,
-                        collapse_prefix = True, clip = 1, tag = '', pos_filter = False, distance_limit = 5, sim_thresh = .7):
+                        collapse_prefix = True, clip = 1, tag = '', pos_filter = False, distance_limit = 5, sim_thresh = .7, skip_pos_types = None):
     all_dist_likes = []
     all_metadata = []
-    skip_pos = ["PUNCT", "NUM"]
+    #skip_pos = ["PUNCT", "SPACE", "NUM"]
+    if skip_pos_types is None:
+        skip_pos = ["PUNCT", "SPACE", "NUM"]
+    skip_sem = ["PUNCT", "SPACE", "NUM"]
     #for each response
     for logits, token_outs in zip(df['logit_outs' + logit_suffix], df['token_outs' + token_suffix]):
         #list of candidate likes
