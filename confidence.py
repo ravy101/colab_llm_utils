@@ -254,7 +254,7 @@ def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], lo
 
         #token_new_word = text.get_word_parts(tokenizer, output_tokens)
         
-
+        output_embeds = [emb_dict[out.item()].squeeze() for out in output_tokens]
         #for each token in sequence
         for i, l in enumerate(logits):
             # embed for chosen token
@@ -266,8 +266,9 @@ def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], lo
             allow_sem_collapse =  pos_dict[output_tokens[i].item()] not in sem_pos_filt
             allow_lex_collapse = pos_dict[output_tokens[i].item()] not in lex_pos_filt
 
-            chosen_emb = emb_dict[output_tokens[i].item()].squeeze()
-            future_tokens = output_tokens[i+1:]
+            chosen_emb = output_embeds[i]
+            future_tokens = output_tokens[i+1:distance_limit+1]
+            future_embeds = output_embeds[i+1:distance_limit+1]
 
             #lists of candidate tokens at position
             tokens = list(l.keys())
@@ -282,18 +283,23 @@ def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], lo
                     continue
 
                 sim_result = 0
+                embed = emb_dict[t].squeeze()
+                future_sims = [misc.sim_cosine(f, embed) for f in future_embeds]
+
                 if collapse_prefix and allow_lex_collapse and text.tokens_may_collapse3(output_tokens[i:], t, tokenizer, case_sensitive=False, allow_empty= allow_empty):
                     sim_result = 1
                     metadata['lex_fragments'] += 1
                     metadata['lex_frag_weight'] += probs[j]
-                elif position_correct and t in future_tokens:
-                    distance = np.where(future_tokens == t)[0][0] + 1
-                    decay = limit_decay(distance, distance_limit)
-                    sim_result = decay
+                elif position_correct and (t in future_tokens or max(future_sims) > .6):
+                    
+                    #distance = np.where(future_tokens == t)[0][0] + 1
+                    #decay = limit_decay(distance, distance_limit)
+                    #sim_result = decay
+                    sim_result = 1
                     metadata['position_adjustments'] += 1
                     metadata['position_adjust_weight'] += probs[j]
                 elif allow_sem_collapse:
-                    embed = emb_dict[t].squeeze()
+                    
                     sim = misc.sim_cosine(chosen_emb, embed)
                     if (sim >= sim_thresh):
                         sim_result = 1
