@@ -285,12 +285,12 @@ def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], lo
                 sim_result = 0
                 embed = emb_dict[t].squeeze()
                 future_sims = [misc.sim_cosine(f, embed) for f in future_embeds]
-
+                max_future_sim =  max(future_sims + [0])
                 if collapse_prefix and allow_lex_collapse and text.tokens_may_collapse3(output_tokens[i:], t, tokenizer, case_sensitive=False, allow_empty= allow_empty):
                     sim_result = 1
                     metadata['lex_fragments'] += 1
                     metadata['lex_frag_weight'] += probs[j]
-                elif position_correct and (t in future_tokens or max(future_sims) > .6):
+                elif position_correct and (t in future_tokens or max_future_sim > .6):
                     
                     #distance = np.where(future_tokens == t)[0][0] + 1
                     #decay = limit_decay(distance, distance_limit)
