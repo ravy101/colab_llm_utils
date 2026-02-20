@@ -267,8 +267,8 @@ def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], lo
             allow_lex_collapse = pos_dict[output_tokens[i].item()] not in lex_pos_filt
 
             chosen_emb = output_embeds[i]
-            future_tokens = output_tokens[i+1:distance_limit+1]
-            future_embeds = output_embeds[i+1:distance_limit+1]
+            future_tokens = output_tokens[i+1:i + distance_limit+1]
+            future_embeds = output_embeds[i+1:i + distance_limit+1]
 
             #lists of candidate tokens at position
             tokens = list(l.keys())
@@ -290,7 +290,7 @@ def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], lo
                     sim_result = 1
                     metadata['lex_fragments'] += 1
                     metadata['lex_frag_weight'] += probs[j]
-                elif position_correct and pos_dict[t] not in pos_pos_filt and t in future_tokens :
+                elif position_correct and pos_dict[t] not in pos_pos_filt and (t in future_tokens or max_future_sim > .9):
                     
                     #distance = np.where(future_tokens == t)[0][0] + 1
                     #decay = limit_decay(distance, distance_limit)
