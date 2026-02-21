@@ -35,12 +35,43 @@ xsum_samples = [{"article": """Four police officers were injured in the incident
   "I hope in the coming weeks more information will be forthcoming to enable residents to make an informed decision," he added.""",
   "summary": """An MP has criticised "the level of misinformation" about a referendum on an elected mayor for Bath and North East Somerset."""}]
 
+wmt_fr_en_samples = [{
+"en": "It says that this should be done despite the principle of relative stability.",
+"fr": "Il précise que cela devrait être fait malgré le principe de stabilité relative."
+},
+{
+"en": "We know, and we have stated as much in very many resolutions indeed, including specifically during the last plenary part-session of last year, that this is not solely a legal case and that it is wrong for Alexander Nikitin to be accused of criminal activity and treason because of our involvement as the beneficiaries of his findings.",
+"fr": "Nous savons, et nous l'avons d'ailleurs établi dans de très nombreuses résolutions - y compris lors de la dernière période de session de l'année dernière -, que ce cas n'est pas seulement de nature juridique et qu'il est faux d'accuser Alexandre Nikitin d'activité criminelle et de trahison car nous sommes concernés par ses résultats et nous en profitons."
+},
+{
+"en": "I shall also refer the matter to the College of Quaestors, and I am certain that they will be keen to ensure that we comply with the regulations we ourselves vote on.",
+"fr": "Je vais soumettre également le problème au Collège des questeurs et je suis certaine que nos questeurs auront à cur de faire en sorte que nous respections la réglementation qu' en effet nous votons."
+}]
+
+wmt_de_en_samples = [{
+"de": "Frau Präsidentin, zunächst besten Dank dafür, daß Sie Wort gehalten haben und nun in der ersten Sitzungsperiode des neuen Jahres das Angebot an Fernsehprogrammen in unseren Büros tatsächlich enorm erweitert ist.",
+"en": "Madam President, I would firstly like to compliment you on the fact that you have kept your word and that, during this first part-session of the new year, the number of television channels in our offices has indeed increased considerably."
+},
+{
+"de": "Und ich hatte noch darauf hingewiesen, die anderen Präsidentenkollegen werden sich noch daran erinnern, daß es nicht darum geht, ob man für oder gegen die Tobin-Steuer ist, sondern darum, ob wir bereit sind, uns anzuhören, was die Kommission und der Rat davon halten.",
+"en": "As my fellow chairmen will recall, I even mentioned that it was not a matter of knowing whether one was for or against the Tobin tax, but of whether one dared to hear what the Commission and the Council thought of it."
+},
+{
+"de": "Ich bedauere das, aber die Abstimmung ist durchgeführt worden, die Entscheidung ist gefallen, also lassen wir die Dinge.",
+"en": "I regret this, but the vote has already been taken and the decision is made so let us leave the matter there."
+}]
+
 
 def doc_to_text_wmt_fr(item, from_lang = 'fr', to_lang = 'en'):
   return f"{languages[from_lang]} source: {item['translation'][from_lang]}\n{languages[to_lang]} translation:"
 
 def doc_to_text_wmt_fr_inst(item, from_lang = 'fr', to_lang = 'en'):
   return f"Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {item['translation'][from_lang]}\nTranslation:"
+
+def doc_to_text_wmt_fr_few_shot(item, from_lang = 'fr', to_lang = 'en'):
+  return f"""Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {wmt_fr_en_samples[0][from_lang]}\nTranslation: {wmt_fr_en_samples[0][to_lang]}\n
+  Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {wmt_fr_en_samples[1][from_lang]}\nTranslation: {wmt_fr_en_samples[1][to_lang]}\n
+Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {item['translation'][from_lang]}\nTranslation:"""
 
 def doc_to_text_wmt_ru(item, from_lang = 'en', to_lang = 'ru'):
   return f"{languages[from_lang]} source: {item['translation'][from_lang]}\n{languages[to_lang]} translation:"
@@ -50,6 +81,11 @@ def doc_to_text_wmt_de(item, from_lang = 'de', to_lang = 'en'):
 
 def doc_to_text_wmt_de_inst(item, from_lang = 'de', to_lang = 'en'):
   return f"Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {item['translation'][from_lang]}\nTranslation:"
+
+def doc_to_text_wmt_de_few_shot(item, from_lang = 'de', to_lang = 'en'):
+  return f"""Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {wmt_de_en_samples[0][from_lang]}\nTranslation: {wmt_de_en_samples[0][to_lang]}\n
+  Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {wmt_de_en_samples[1][from_lang]}\nTranslation: {wmt_de_en_samples[1][to_lang]}\n
+Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {item['translation'][from_lang]}\nTranslation:"""
 
 def doc_to_text_qa(item):
   return f"Provide a short answer without explanation.\n Question: {item['question']}\nShort Answer:"
@@ -221,7 +257,7 @@ wmt14 = {"clean_name": "wmt14fr-en",
         "subset": "train",
         "task_type": "translation",
         "dict_ans": False,
-        "doc_to_text": doc_to_text_wmt_fr,
+        "doc_to_text": doc_to_text_wmt_fr_few_shot,
         "doc_to_ans": doc_to_answer_wmt_fr}
 
 triviaqa = {"clean_name": "TriviaQA",
@@ -283,8 +319,9 @@ wmt19de = {"clean_name": "wmt19de-en",
         "subset": "train",
         "task_type": "translation",
         "dict_ans": False,
-        "doc_to_text": doc_to_text_wmt_de,
+        "doc_to_text": doc_to_text_wmt_de_few_shot,
         "doc_to_ans": doc_to_answer_wmt_de}
+
 
 wmt14de = {"clean_name": "wmt14de-en",
         "dataset_name": "de-en",
@@ -293,7 +330,7 @@ wmt14de = {"clean_name": "wmt14de-en",
         "subset": "train",
         "task_type": "translation",
         "dict_ans": False,
-        "doc_to_text": doc_to_text_wmt_de,
+        "doc_to_text": doc_to_text_wmt_de_few_shot,
         "doc_to_ans": doc_to_answer_wmt_de}
 
 sciq = {"clean_name": "SciQ",
