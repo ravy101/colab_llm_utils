@@ -284,8 +284,12 @@ def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], lo
 
                 sim_result = 0
                 embed = emb_dict[t].squeeze()
-                future_sims = [misc.sim_cosine(f, embed) for f in future_embeds]
-                max_future_sim =  max(future_sims + [0])
+                if position_correct and future_sim_thresh <1:
+                    future_sims = [misc.sim_cosine(f, embed) for f in future_embeds]
+                    max_future_sim =  max(future_sims + [0])
+                else:
+                    max_future_sim = -1
+
                 if collapse_prefix and allow_lex_collapse and text.tokens_may_collapse3(output_tokens[i:], t, tokenizer, case_sensitive=False, allow_empty= allow_empty):
                     sim_result = 1
                     metadata['lex_fragments'] += 1
