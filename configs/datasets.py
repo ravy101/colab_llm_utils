@@ -35,6 +35,52 @@ xsum_samples = [{"article": """Four police officers were injured in the incident
   "I hope in the coming weeks more information will be forthcoming to enable residents to make an informed decision," he added.""",
   "summary": """An MP has criticised "the level of misinformation" about a referendum on an elected mayor for Bath and North East Somerset."""}]
 
+samsum_samples = [{"dialogue": """Sadie: can i borrow your bike again please?
+Chloe: when?
+Sadie: on thursday, i need to go to the dentist quickly after work
+Chloe: sure, let me know when you want to pick it up
+Sadie: wednesday evening will be good?
+Chloe: sure, come over and please remember to lock it properly!!""",
+  "summary": """Sadie will borrow Chloe's bike on Wednesday evening. She has a dentist appointment on Thursday after work."""},
+  {"dialogue": """Diane: Will you be my kids' Lorelai?
+Kate: Awww :3
+Kate: of course, I will!
+Kate: Not that they would ever need one with such an amazing mother as you...
+Diane: Well, I'm not sure
+Diane: I'm terrified
+Kate: It's normal, everyone gets scared before the birth
+Kate: But once you hold her in your arms...
+Kate: You'll forget everything
+Diane: Yeah, I guess...
+Diane: I just can't wait for it to happen
+Diane: The waiting is the worst.
+Kate: Hang in there a bit longer, honey <3
+Kate: you can do it!
+Kate: <file_gif>
+Diane: loool, thanks :D""",  
+"summary": """Diane is pregnant and can't wait to give birth, she thinks the waiting is the worst. Kate thinks she'll be an amazing mother."""},
+  {"dialogue": """Aubray: Hi! What r u doing tomorrow?
+Kate: Nothing special
+Aubray: How about movie?
+Kate: What kind of?
+Aubray: something funny?
+Kate: comedy you say.. is there anything worth watching?
+Aubray: there's this new movie with SRK
+Kate: please, don't say it's one of your Bollywood thing
+Aubray: well, yes... but this one even you will like
+Kate: How do you know? I realy can't stand all this singing and dancing
+Aubray: Don't you find it a little bit funny? You can realy stop thinking for a while and just enjoy :D
+Kate: yeah, cause watching 3h movie in a weird language is such a joy.
+Aubray: oh please, I realy want to watch it!
+Kate: u know I don't like that stuff
+Aubray: pretty, pretty please? 4 the last time? If u tell me after that u r done with it I'll never ask again
+Kate: 4 real?
+Aubray: Yes, I swear
+Kate: ok, I go, 4 the last time
+Aubray: thank u tahnk u thank u :*
+Kate: yeah, yeah. See u tomorrow""",
+  "summary": """Aubray wants to watch Bollywood movie with Kate tomorrow. Kate doesn't like this type of movie. In the end, she agrees to join Aubray."""}]
+
 wmt_fr_en_samples = [{
 "en": "It says that this should be done despite the principle of relative stability.",
 "fr": "Il précise que cela devrait être fait malgré le principe de stabilité relative."
@@ -169,16 +215,32 @@ def doc_to_ans_hotpot(item):
 
 
 def doc_to_text_summarization(doc):
-    prompt = f"""Write a concise, factual summary of the text below.
+    prompt = f""" You are a dialogue summarization assistant.
+
+    Dialogue:
+{samsum_samples[1]["dialogue"]}
+
+Summary: {samsum_samples[1]["summary"]}
+
+--------------------------------------
+
+Dialogue:
+{samsum_samples[2]["dialogue"]}
+
+Summary: {samsum_samples[2]["summary"]}
+
+--------------------------------------
+
+Write a concise, factual summary of the text below.
 The summary should capture the main event or most important point, not every message individually.
 Do not add new information.
-Keep the summary brief and self-contained (1 to 3 numbered sentences).
+Keep the summary brief and self-contained.
 
-Text:
-{doc.get("document") or doc.get("dialogue")}
+Dialogue:
+{doc.get("dialogue")}
 
 Summary:
-1. """
+"""
     return prompt
 
 def doc_to_text_cnn(doc):
