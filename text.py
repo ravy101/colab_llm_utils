@@ -88,6 +88,8 @@ def get_token_importance(pos):
     return offset
 
 def get_pos(token):
+    if len(token.strip()) > 0:
+        token = token.strip()
     doc = nlp(token)
     if len(doc) >0:
         result = doc[0].pos_
