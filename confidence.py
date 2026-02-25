@@ -248,7 +248,9 @@ def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], lo
                     "semantic_collapses": 0,
                     "semantic_collapse_weight": 0.0,
                     "change_list": [],
-                    "pos_list": []
+                    "pos_list": [],
+                    "pos_col_pos_list": [],
+                    "pos_col_w_list": []
                     }
         output_tokens = token_outs[-len(logits):]
 
@@ -302,6 +304,8 @@ def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], lo
                     sim_result = 1
                     metadata['position_adjustments'] += 1
                     metadata['position_adjust_weight'] += probs[j]
+                    metadata['pos_col_pos_list'].append(pos_dict[t])
+                    metadata['pos_col_w_list'].append(probs[j])
                 elif allow_sem_collapse:
                     
                     sim = misc.sim_cosine(chosen_emb, embed)
