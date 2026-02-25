@@ -137,8 +137,7 @@ def doc_to_text_qa(item):
   return f"Provide a short answer without explanation.\n Question: {item['question']}\nShort Answer:"
 
 def doc_to_text_nq(item):
-  text = f"""
-  Provide the specific answer to the following question. Do not include reasoning, explanation or conversational filler. Output only the required information as concisely as possible. If unsure or unable to answer, output only your best guess.
+  text = f"""Provide the specific answer to the following question. Do not include reasoning, explanation or conversational filler. Output only the required information as concisely as possible. If unsure or unable to answer, output only your best guess.
   Question: ({item['question']}?)
 Short Answer:"""
   return text
