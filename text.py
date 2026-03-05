@@ -87,9 +87,10 @@ def get_token_importance(pos):
       offset = 0.5
     return offset
 
-def get_pos(token):
-    #if len(token.strip()) > 0:
-    #    token = token.strip()
+def get_pos(token, strip_space = True):
+    if strip_space:
+        if len(token.strip()) > 0:
+            token = token.strip()
     doc = nlp(token)
     if len(doc) >0:
         result = doc[0].pos_
