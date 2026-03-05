@@ -292,7 +292,8 @@ def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], lo
                 else:
                     max_future_sim = -1
 
-                if collapse_prefix and allow_lex_collapse and text.tokens_may_collapse3(output_tokens[i:], t, tokenizer, case_sensitive=False, allow_empty= allow_empty):
+                if collapse_prefix and allow_lex_collapse and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
+                #text.tokens_may_collapse3(output_tokens[i:], t, tokenizer, case_sensitive=False, allow_empty= allow_empty):
                     sim_result = 1
                     metadata['lex_fragments'] += 1
                     metadata['lex_frag_weight'] += probs[j]
