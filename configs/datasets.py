@@ -105,6 +105,14 @@ wmt_de_en_samples = [{
 {
 "de": "Ich bedauere das, aber die Abstimmung ist durchgeführt worden, die Entscheidung ist gefallen, also lassen wir die Dinge.",
 "en": "I regret this, but the vote has already been taken and the decision is made so let us leave the matter there."
+},
+{
+"de": "Patienten ohne Schmerzlinderung werden immer häufiger die Möglichkeit haben, auf diese terminale Sedierung zurückzugreifen.",
+"en": "Increasingly, an unrelieved patient will have the option of having such palliative sedation."
+},
+{
+"de": "Darüber hinaus werden durch diese Gesetze ebenfalls die Zeiträume für die vorzeitige Stimmabgabe verkürzt, das Recht für ungültig erklärt, sich am Wahltag als Wähler zu registrieren, und Staatsbürgern das Wahlrecht abgesprochen, für die eine Gerichtsakte vorliegt.",
+"en": "Furthermore, these laws also reduce early voting periods, invalidate the right to register as a voter on election day and withdraw the right to vote of citizens with a criminal record."
 }]
 
 
@@ -129,9 +137,8 @@ def doc_to_text_wmt_de_inst(item, from_lang = 'de', to_lang = 'en'):
   return f"Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {item['translation'][from_lang]}\nTranslation:"
 
 def doc_to_text_wmt_de_few_shot(item, from_lang = 'de', to_lang = 'en'):
-  return f"""Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {wmt_de_en_samples[0][from_lang]}\nTranslation: {wmt_de_en_samples[0][to_lang]}\n
-  Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {wmt_de_en_samples[1][from_lang]}\nTranslation: {wmt_de_en_samples[1][to_lang]}\n
-Translate  the following from {languages[from_lang]} to {languages[to_lang]}: {item['translation'][from_lang]}\nTranslation:"""
+  return f"""Translate  the following from {languages[from_lang]} to fluent, natural {languages[to_lang]}: {wmt_de_en_samples[0][from_lang]}\nTranslation: {wmt_de_en_samples[0][to_lang]}\nTranslate  the following from {languages[from_lang]} to fluent, natural {languages[to_lang]}: {wmt_de_en_samples[1][from_lang]}\nTranslation: {wmt_de_en_samples[1][to_lang]}\nTranslate  the following from {languages[from_lang]} to fluent, natural {languages[to_lang]}: {wmt_de_en_samples[3][from_lang]}\nTranslation: {wmt_de_en_samples[3][to_lang]}\n\nTranslate  the following from {languages[from_lang]} to fluent, natural {languages[to_lang]}: {wmt_de_en_samples[4][from_lang]}\nTranslation: {wmt_de_en_samples[4][to_lang]}\nTranslate  the following from {languages[from_lang]} to fluent, natural {languages[to_lang]}: {item['translation'][from_lang]}\nTranslation:"""
+
 
 def doc_to_text_qa(item):
   return f"Provide a short answer without explanation.\n Question: {item['question']}\nShort Answer:"
