@@ -233,7 +233,7 @@ def get_cs_emb_likes(df, emb_dict, tokenizer, stopword_ids = [], logit_suffix=''
 
 
 def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], logit_suffix='', token_suffix='', position_correct = True, skip_stopwords = True, allow_empty = True, number_exception = False,
-                        collapse_prefix = True, clip = 1, tag = '', distance_limit = 5, sim_thresh = .5, sem_pos_filt = [], lex_pos_filt=[], pos_pos_filt=[], future_sim_thresh= .5):
+                        collapse_prefix = True, clip = 1, tag = '', distance_limit = 5, sim_thresh = .5, sem_pos_filt = [], lex_pos_filt=[], pos_pos_filt=[], future_sim_thresh= .5, bidir_col = True):
     all_dist_likes = []
     all_metadata = []
 
@@ -255,7 +255,7 @@ def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], lo
         output_tokens = token_outs[-len(logits):]
 
         #token_new_word = text.get_word_parts(tokenizer, output_tokens)
-        
+
         output_embeds = [emb_dict[out.item()].squeeze() for out in output_tokens]
         #for each token in sequence
         for i, l in enumerate(logits):
@@ -292,8 +292,9 @@ def get_cs_thresh_likes(df, emb_dict, pos_dict, tokenizer, stopword_ids = [], lo
                 else:
                     max_future_sim = -1
 
-                if collapse_prefix and allow_lex_collapse and text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
-                #text.tokens_may_collapse3(output_tokens[i:], t, tokenizer, case_sensitive=False, allow_empty= allow_empty):
+                if collapse_prefix and allow_lex_collapse and text.tokens_may_collapse3(output_tokens[i:], t, tokenizer, case_sensitive=False, allow_empty= allow_empty, bidir_col=bidir_col):
+                #text.tokens_may_collapse(output_tokens[i].item(), t, tokenizer):
+                #:
                     sim_result = 1
                     metadata['lex_fragments'] += 1
                     metadata['lex_frag_weight'] += probs[j]
