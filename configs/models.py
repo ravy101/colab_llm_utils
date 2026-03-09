@@ -9,6 +9,13 @@ double_quant_cfg = BitsAndBytesConfig(
    llm_int8_enable_fp32_cpu_offload=True
 )
 
+mixed_quant_cfg = BitsAndBytesConfig(
+   load_in_4bit=True,
+   bnb_4bit_quant_type="nf4",
+   bnb_4bit_compute_dtype=torch.bfloat16,
+   llm_int8_enable_fp32_cpu_offload=True
+)
+
 single_quant_cfg = BitsAndBytesConfig(
    load_in_8bit=True,
    llm_int8_enable_fp32_cpu_offload=True
