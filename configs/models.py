@@ -21,6 +21,7 @@ single_quant_cfg = BitsAndBytesConfig(
    llm_int8_enable_fp32_cpu_offload=True
 )
 
+
 llama7b = {"model_name": "meta-llama/Llama-2-7b-hf",
                  "hf_model_func": AutoModelForCausalLM,
                  "bnb_config": double_quant_cfg,
@@ -139,6 +140,12 @@ mistral_7b = {"model_name": "mistralai/Mistral-7B-v0.3",
                  "block_limit": None
                  }
 
+mistral_24b = {"model_name": "mistralai/Mistral-Small-3.1-24B-Base-2503",
+                 "hf_model_func": AutoModelForCausalLM,
+                 "bnb_config": single_quant_cfg,
+                 "block_limit": None
+                 }
+
 mistral_7b_chat = {"model_name": "mistralai/Mistral-7B-Instruct-v0.3",
                  "hf_model_func": AutoModelForCausalLM,
                  "bnb_config": single_quant_cfg,
@@ -163,4 +170,11 @@ ministral_8b_chat = {"model_name": "mistralai/Ministral-8B-Instruct-2410",
                  "bnb_config": single_quant_cfg,
                  "block_limit": None
                  }
+
+mixtral_8x7b = {
+    "model_name": "mistralai/Mixtral-8x7B-v0.1",
+    "hf_model_func": AutoModelForCausalLM,
+    "bnb_config": double_quant_cfg,
+    "block_limit": None
+}
 
