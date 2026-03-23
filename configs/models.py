@@ -179,7 +179,7 @@ mixtral_8x7b = {
 }
 
 mistral_small24 = {
-    "model_name": "mistralai/Mistral-Small-3.1-24B-Base-2503",
+    "model_name": "mistralai/Mistral-Small-24B-Base-2501",
     "hf_model_func": AutoModelForCausalLM,
     "bnb_config": single_quant_cfg,
     "block_limit": None
