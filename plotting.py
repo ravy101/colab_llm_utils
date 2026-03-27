@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from . import misc
 from . import text
 
-def visualize_logit_tree(logits_per_step, tokenizer, emb_dict, chosen_tokens, top_k=5, thresh = .5):
+def visualize_logit_tree(logits_per_step, tokenizer, emb_dict, chosen_tokens, top_k=5, thresh = .3):
     """
     Visualize candidate token branches as a tree.
 
@@ -41,7 +41,9 @@ def visualize_logit_tree(logits_per_step, tokenizer, emb_dict, chosen_tokens, to
         exp_shifted = [math.exp(ll - max_ll) for ll in logliks]
         total = sum(exp_shifted)
         probs = [v / total for v in exp_shifted]
+        future_tokens = output_tokens[step+1:]
         for (token_id, loglik), prob in zip(candidates, probs):
+            
             if prob < 0.01:
               continue
             else:
@@ -65,8 +67,10 @@ def visualize_logit_tree(logits_per_step, tokenizer, emb_dict, chosen_tokens, to
                 colour = "lightblue"
                 if cs > thresh:
                     colour = "green"
-                if text.tokens_may_collapse3(output_tokens[step:], token_id, tokenizer):
+                elif text.tokens_may_collapse3(output_tokens[step:], token_id, tokenizer):
                     colour = "red"
+                elif token_id in future_tokens:
+                    colour = "purple"
                 node_colours.append(colour)
 
               if step == 0:
