@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import KFold
 
@@ -96,3 +96,50 @@ def post_hoc_oof(
         oof_preds[val_idx] = model.predict_proba(X_val)[:,0]
 
     return pd.Series(oof_preds, index=df.index, name="oof_prediction")
+
+def post_hoc_oof_cont(
+    df,
+    feature_cols,
+    target_col,
+    n_splits=5,
+    random_state=42,
+    rf_kwargs=None,
+    model_type = RandomForestRegressor
+):
+    """
+    Returns out-of-fold predictions for each row in df using 5-fold CV.
+    """
+
+    for c in feature_cols:
+        if c not in list(df.columns):
+            print(f"feature {c} not found in dataframe.")
+            feature_cols.remove(c)
+
+    if rf_kwargs is None:
+        rf_kwargs = {}
+
+    X = df[feature_cols].values
+    y = df[target_col].values
+
+    oof_preds = np.zeros(len(df))
+
+    kf = KFold(
+        n_splits=n_splits,
+        shuffle=True,
+        random_state=random_state
+    )
+
+    for train_idx, val_idx in kf.split(X):
+        X_train, X_val = X[train_idx], X[val_idx]
+        y_train = y[train_idx]
+
+        model = model_type(
+            random_state=random_state,
+            **rf_kwargs
+        )
+
+        model.fit(X_train, y_train)
+        oof_preds[val_idx] = model.predict(X_val)
+
+    return pd.Series(oof_preds, index=df.index, name="oof_prediction")
+
