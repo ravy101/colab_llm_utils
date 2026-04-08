@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.metrics import r2_score, mean_squared_error, roc_auc_score, brier_score_loss
-from relplot.metrics import smECE as smece
+#from relplot.metrics import smECE as smece
 from . import misc
 
 def ece(y_true: np.array, y_pred: np.array, n_bins: int = 10) -> float:
@@ -52,5 +52,5 @@ def confidence_metrics(df, correct_col, conf_col, invert=False, n_bins=10):
   results['auc'] = roc_auc_score(df[correct_col],  conf)
   results['brier'] = brier_score_loss(df[correct_col],  conf)
   #results['ece'] = ece(df[correct_col], conf, n_bins=10)
-  results['smece'] = smece(df[correct_col], conf)
+  #results['smece'] = smece(df[correct_col], conf)
   return results
