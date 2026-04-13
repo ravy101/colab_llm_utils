@@ -233,11 +233,29 @@ class LlamaHelper:
         return self.tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
 
     def get_sequence_logits(self, prompt, use_beams = False, stop_at='\n'):
-      inputs = self.tokenizer(prompt, return_tensors="pt")
+      if self.inference['thinking']:
+        messages = [
+            {"role": "user", "content": prompt}
+        ]
+
+        # Explicitly enable thinking mode
+        text = self.tokenizer.apply_chat_template(
+            messages, 
+            tokenize=False, 
+            add_generation_prompt=True, 
+            enable_thinking=True  # Set to False for non-thinking/fast mode
+        )
+        inputs = self.tokenizer([text], return_tensors="pt").to("cuda")   
+      else:
+        inputs = self.tokenizer(prompt, return_tensors="pt")
+        
       input_len = len(inputs.input_ids[0])
       #max_len = int(input_len * (1 + OUTPUT_RATIO))
+
       max_len = int(input_len + self.inference['max_new_tokens'])
       meta_info = {}
+      
+         
       print(f"max len {max_len}")
 
       with torch.no_grad():
@@ -278,10 +296,13 @@ class LlamaHelper:
       if not self.inference['skip_intermediates']:
         hs = self.get_hidden_states()
         if hasattr(self.model, "config") and hasattr(self.model.config, "quantization_config"):
-            # If quantized, use the compute_dtype
-            target_dtype = self.model.config.quantization_config.bnb_4bit_compute_dtype
-        else:
+          q_cfg = self.model.config.quantization_config
+          if getattr(q_cfg, "load_in_4bit", False):
+            target_dtype = q_cfg.bnb_4bit_compute_dtype
+        
+        if getattr(q_cfg, "load_in_8bit", False):
             target_dtype = self.model.dtype
+        
         full_probs = get_full_probs(logit_seq, hs, self.get_head(), fp_type=target_dtype)
       else:
         full_probs = {}

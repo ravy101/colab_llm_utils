@@ -10,6 +10,7 @@ summarization = {
         "n_samples": 2000,
         "samples_per_file": 50,
         "skip_intermediates": True,
+        "thinking": False,
 }
 
 qa = {
@@ -24,6 +25,7 @@ qa = {
         "n_samples": 2000,
         "samples_per_file": 50,
         "skip_intermediates": True,
+        "thinking": False,
 }
 
 translation = {
@@ -38,4 +40,5 @@ translation = {
         "n_samples": 2000,
         "samples_per_file": 50,
         "skip_intermediates": True,
+        "thinking": False,
 }
