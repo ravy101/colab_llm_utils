@@ -277,7 +277,12 @@ class LlamaHelper:
 
       if not self.inference['skip_intermediates']:
         hs = self.get_hidden_states()
-        full_probs = get_full_probs(logit_seq, hs, self.get_head())
+        if hasattr(self.model, "config") and hasattr(self.model.config, "quantization_config"):
+            # If quantized, use the compute_dtype
+            target_dtype = self.model.config.quantization_config.bnb_4bit_compute_dtype
+        else:
+            target_dtype = self.model.dtype
+        full_probs = get_full_probs(logit_seq, hs, self.get_head(), fp_type=target_dtype)
 
       return text, outputs.sequences[0].detach().squeeze().cpu().numpy(), logit_seq, full_probs, meta_info#[:len(outputs.sequences[0]) -1]
 
