@@ -74,7 +74,7 @@ def token_logit_seq(logits, k = 10):
     seq.append(tokens)
   return seq
 
-def get_full_probs(logit_dict, hs, lm_head):
+def get_full_probs(logit_dict, hs, lm_head, fp_type=torch.float16):
   candidate_tokens = []
   for i, o in enumerate(logit_dict):
     candidate_tokens.append(list(o.keys()))
