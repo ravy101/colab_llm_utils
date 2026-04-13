@@ -187,7 +187,7 @@ mistral_small24 = {
 
 # M_small: The Reasoning Specialist
 qwen3_8b = {
-    "model_name": "Qwen/Qwen3-8B-Instruct",
+    "model_name": "Qwen/Qwen3-8B",
     "hf_model_func": AutoModelForCausalLM,
     "bnb_config": single_quant_cfg,
     "block_limit": None 
@@ -195,7 +195,7 @@ qwen3_8b = {
 
 # The "Middle Child": Great for testing the Scaling axis
 qwen3_14b = {
-    "model_name": "Qwen/Qwen3-14B-Instruct",
+    "model_name": "Qwen/Qwen3-14B",
     "hf_model_func": AutoModelForCausalLM,
     "bnb_config": single_quant_cfg,
     "block_limit": None
@@ -203,15 +203,7 @@ qwen3_14b = {
 
 # M_large: The Performance Anchor (Fits on A100 40GB in 4-bit)
 qwen3_32b = {
-    "model_name": "Qwen/Qwen3-32B-Instruct",
-    "hf_model_func": AutoModelForCausalLM,
-    "bnb_config": double_quant_cfg,
-    "block_limit": None
-}
-
-# M_extra_large: The "Ceiling" (Requires separate session or offloading)
-qwen3_72b = {
-    "model_name": "Qwen/Qwen3-72B-Instruct",
+    "model_name": "Qwen/Qwen3-32B",
     "hf_model_func": AutoModelForCausalLM,
     "bnb_config": double_quant_cfg,
     "block_limit": None
