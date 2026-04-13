@@ -1,0 +1,32 @@
+summarization = {
+        "temperature": 1.0,
+        "output_ratio": 0.25,
+        "do_sample": False,
+        "top_k": 10,
+        "top_p": None,
+        "repetition_penalty": 1.1,
+        "max_new_tokens": 200,
+        "n_samples": 2000
+}
+
+qa = {
+        "temperature": 1.0,
+        "output_ratio": 1.0,
+        "do_sample": False,
+        "top_k": 0,
+        "top_p": 1.0,
+        "repetition_penalty": 1.2,
+        "max_new_tokens": 60,
+        "n_samples": 2000
+}
+
+translation = {
+        "temperature": 1.0,
+        "output_ratio": 1.0,
+        "do_sample": False,
+        "top_k": 10,
+        "top_p": 1.0,
+        "repetition_penalty": 1.2,
+        "max_new_tokens": 600,
+        "n_samples": 2000
+}
