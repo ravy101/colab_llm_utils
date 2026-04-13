@@ -9,7 +9,7 @@ summarization = {
         "max_new_tokens": 200,
         "n_samples": 2000,
         "samples_per_file": 50,
-        "skip_intermediates": False,
+        "skip_intermediates": True,
 }
 
 qa = {
@@ -23,7 +23,7 @@ qa = {
         "max_new_tokens": 60,
         "n_samples": 2000,
         "samples_per_file": 50,
-        "skip_intermediates": False,
+        "skip_intermediates": True,
 }
 
 translation = {
@@ -37,5 +37,5 @@ translation = {
         "max_new_tokens": 600,
         "n_samples": 2000,
         "samples_per_file": 50,
-        "skip_intermediates": False,
+        "skip_intermediates": True,
 }
