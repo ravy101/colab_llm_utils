@@ -283,6 +283,8 @@ class LlamaHelper:
         else:
             target_dtype = self.model.dtype
         full_probs = get_full_probs(logit_seq, hs, self.get_head(), fp_type=target_dtype)
+      else:
+        full_probs = {}
 
       return text, outputs.sequences[0].detach().squeeze().cpu().numpy(), logit_seq, full_probs, meta_info#[:len(outputs.sequences[0]) -1]
 
