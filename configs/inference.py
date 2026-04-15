@@ -11,6 +11,7 @@ summarization = {
         "samples_per_file": 50,
         "skip_intermediates": True,
         "thinking": False,
+        "terminators": ["\n\n\n","\n\n", "Text:"],
 }
 
 qa = {
@@ -26,6 +27,7 @@ qa = {
         "samples_per_file": 50,
         "skip_intermediates": True,
         "thinking": False,
+        "terminators": ["Question:", "Explanation:","\n\n", "\n"],
 }
 
 translation = {
@@ -41,4 +43,5 @@ translation = {
         "samples_per_file": 50,
         "skip_intermediates": True,
         "thinking": False,
+        "terminators": ["\n"],
 }

@@ -191,16 +191,6 @@ class LlamaHelper:
         self.inference = inference_config
 
         self.last_out_len = None
-        self.terminators = None
-
-        if inference_config['task_type'] == 'qa':
-          self.terminators = ["Question:", "Explanation:","\n\n", "\n"] #
-        elif inference_config['task_type'] == 'summarization':
-          self.terminators = ["\n\n\n","\n\n", "Text:"]
-        elif inference_config['task_type'] == 'translation':
-          self.terminators = ["\n"]
-        else:
-          self.terminators = ["\n"]
 
         max_memory = {0: "75GiB", "cpu": "150GiB"}
 
@@ -245,7 +235,7 @@ class LlamaHelper:
             add_generation_prompt=True, 
             enable_thinking=True  # Set to False for non-thinking/fast mode
         )
-        inputs = self.tokenizer([text], return_tensors="pt").to("cuda")   
+        inputs = self.tokenizer([text], return_tensors="pt")   
       else:
         inputs = self.tokenizer(prompt, return_tensors="pt")
         
@@ -265,7 +255,7 @@ class LlamaHelper:
           outputs = self.model.generate(inputs.input_ids.to(self.model.device), output_scores=True, return_dict_in_generate=True, max_length=max_len, repetition_penalty=1.0, early_stopping=True, num_beams = 3, temperature=self.inference['temperature'])
         else:
           outputs = self.model.generate(inputs.input_ids.to(self.model.device), output_scores=True, tokenizer = self.tokenizer, return_dict_in_generate=True, eos_token_id=self.tokenizer.eos_token_id,
-            pad_token_id=self.tokenizer.eos_token_id, stop_strings=self.terminators, max_length=max_len, repetition_penalty=self.inference['repetition_penalty'], early_stopping=True, do_sample=self.inference['do_sample'], top_k=self.inference['top_k'], temperature = self.inference['temperature'])
+            pad_token_id=self.tokenizer.eos_token_id, stop_strings=self.inference['terminators'], max_length=max_len, repetition_penalty=self.inference['repetition_penalty'], early_stopping=True, do_sample=self.inference['do_sample'], top_k=self.inference['top_k'], temperature = self.inference['temperature'])
 
 
         print(self.tokenizer.batch_decode(outputs.sequences[0]))
