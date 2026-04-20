@@ -285,4 +285,8 @@ def split_tagged_text(
         answer = match.group(2)
         return answer, tagged_content
     else:
-        return text, None
+        sentences = text.split(".")
+        if len(sentences) > 1:
+            answer = sentences[-1]
+            thinking = sentences[:-1]
+        return answer, thinking
