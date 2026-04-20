@@ -2,6 +2,7 @@ import spacy
 import math
 import numpy as np
 import re
+from typing import Tuple, Optional
 from numpy.linalg import norm
 from typing import List, Dict, Union
 
@@ -260,3 +261,28 @@ def semantic_transform(
     e_sem_normalized = e_sem / norm(e_sem)
     
     return e_sem_normalized
+
+
+def split_tagged_text(
+    text: str,
+    start_tag: str = "<think>",
+    end_tag: str = "</think>"
+) -> Tuple[str, Optional[str]]:
+
+    # Escape tags in case they contain regex characters
+    start_tag_esc = re.escape(start_tag)
+    end_tag_esc = re.escape(end_tag)
+
+    pattern = re.compile(
+        rf"{start_tag_esc}(.*?){end_tag_esc}\s*(.*)",
+        re.DOTALL
+    )
+    
+    match = pattern.search(text)
+    
+    if match:
+        tagged_content = match.group(1)
+        answer = match.group(2)
+        return answer, tagged_content
+    else:
+        return text, None
