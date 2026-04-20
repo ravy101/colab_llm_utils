@@ -288,5 +288,5 @@ def split_tagged_text(
         sentences = text.split(".")
         if len(sentences) > 1:
             answer = sentences[-1]
-            thinking = sentences[:-1]
+            thinking = "".join(sentences[:-1])
         return answer, thinking
