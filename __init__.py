@@ -40,6 +40,7 @@ __all__ = ["configs",
            "scorers",
            "text",
            "metric",
-           "embedders"]
+           "embedders",
+           "api_scorer"]
 
 __version__ = "0.0.7"
