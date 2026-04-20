@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from . import likelihood
 from . import scorers
+from . import text
 
 
 def process_dataframe(df, dataset_config, metric_dict, self_conf = False, p_true = False):
@@ -38,6 +39,13 @@ def process_dataframe(df, dataset_config, metric_dict, self_conf = False, p_true
   df['chow_sum'] = [likelihood.chow_sum(l) for l in df['top_probas']]
   df['chow_quantile'] = [likelihood.chow_quantile(l) for l in df['top_probas']]
   df['log_chow_av'] = [likelihood.log_chow_av(l) for l in df['top_probas']]
+
+  if dataset_config['thinking']:
+    splits = [text.split_tagged_text(a) for a in df['ans']]
+    df['thinking_text'] = [s[1] for s in splits]
+    df['ans'] = [s[0] for s in splits]
+  else:
+    df['thinking_text'] = None
 
   if self_conf:
     self_conf_series = [m['self_conf'] for m in df['meta']]
@@ -79,6 +87,7 @@ def process_dataframe(df, dataset_config, metric_dict, self_conf = False, p_true
     for out, ans in zip(df['responses'], df['ans']):
       results.append(scorers.best_rouge_l(out, ans))
     df['rouge'] = results
+
   gc.collect()
   return df
 
