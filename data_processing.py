@@ -43,7 +43,7 @@ def process_dataframe(df, dataset_config, metric_dict, self_conf = False, p_true
   if thinking:
     splits = [text.split_tagged_text(a[0]) for a in df['responses']]
     df['thinking_text'] = [s[1] for s in splits]
-    df['responses'] = [s[0] for s in splits]
+    df['responses'] = [[s[0]] for s in splits]
   else:
     df['thinking_text'] = None
 
