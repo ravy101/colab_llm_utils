@@ -43,5 +43,5 @@ translation = {
         "samples_per_file": 50,
         "skip_intermediates": True,
         "thinking": False,
-        "terminators": ["\n"],
+        "terminators": ["\n", "\n\n"],
 }
