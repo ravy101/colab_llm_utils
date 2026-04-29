@@ -245,7 +245,7 @@ class LlamaHelper:
       meta_info = {}
       
          
-      print(f"max len {max_len}")
+      #print(f"max len {max_len}")
 
       with torch.no_grad():
         #stop_token = self.tokenizer(stop_at, return_tensors="pt")['input_ids'][0][-1].to(self.device)
@@ -257,12 +257,12 @@ class LlamaHelper:
             pad_token_id=self.tokenizer.eos_token_id, stop_strings=self.inference['terminators'], max_length=max_len, repetition_penalty=self.inference['repetition_penalty'], early_stopping=True, do_sample=self.inference['do_sample'], top_k=self.inference['top_k'], temperature = self.inference['temperature'])
 
 
-        print(self.tokenizer.batch_decode(outputs.sequences[0]))
+        #print(self.tokenizer.batch_decode(outputs.sequences[0]))
         new_tokens = outputs.sequences[0][inputs.input_ids.shape[-1]:]
         text = self.tokenizer.batch_decode([new_tokens], skip_special_tokens=True, clean_up_tokenization_spaces=True)
 
 
-      print(f"decoded text {text}")
+      #print(f"decoded text {text}")
       if use_beams:
         selected_beam_vocab_logits = []
         for i, b in enumerate(outputs.beam_indices[0]):
@@ -270,8 +270,8 @@ class LlamaHelper:
         logit_scores = torch.stack(selected_beam_vocab_logits)
       else:
         logit_scores = torch.stack([s.detach().squeeze() for s in outputs.scores] )
-        print(f"output len {len(outputs.sequences[0])}")
-        print(f"logit len {logit_scores.shape}")
+        #print(f"output len {len(outputs.sequences[0])}")
+        #print(f"logit len {logit_scores.shape}")
       logit_seq = token_logit_seq(logit_scores)
 
       for l1, t1 in zip(logit_seq, new_tokens):
