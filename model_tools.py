@@ -22,8 +22,7 @@ class tokenizer_embedder:
     def get_token_embedding(self, token):
       with torch.no_grad():
         e = self.embed[torch.IntTensor([token])]
-      e.detach()
-      return e.numpy()
+      return e.detach().cpu().float().numpy()
 
 def get_embedding(token, model):
     with torch.no_grad():
