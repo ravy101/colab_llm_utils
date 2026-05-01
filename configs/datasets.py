@@ -455,7 +455,7 @@ cnn_dailymail = {
 
 
 def doc_to_text_strategyqa(item):
-  return f"Provide a short answer without explanation.\n Question: {item['question']}\nShort Answer:"
+  return f"Provide a short answer without explanation.\n Answer 'Yes' or 'No'.\nQuestion: {item['question']}\nShort Answer:"
 
 strategyqa = {
     "clean_name": "StrategyQA",
