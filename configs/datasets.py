@@ -452,3 +452,34 @@ cnn_dailymail = {
     "doc_to_text": doc_to_text_cnn,
     "doc_to_ans": doc_to_summary_cnn,
 }
+
+
+def doc_to_text_strategyqa(item):
+  return f"Provide a short answer without explanation.\n Question: {item['question']}\nShort Answer:"
+
+strategyqa = {
+    "clean_name": "StrategyQA",
+    "dataset_name": None,
+    "dataset_location": "tasksource/strategy-qa",
+    "options": ["Yes", "No"],
+    "subset": "train",
+    "task_type": "qa",
+    "dict_ans": False, # Usually stored as a direct boolean/string
+    "doc_to_text": doc_to_text_strategyqa, # Needs to prompt for "Step-by-step"
+    "doc_to_ans": doc_to_answer_qa
+}
+
+def doc_to_text_musique(item):
+  return f"Provide a short answer without explanation.\n Question: {item['question']}\nShort Answer:"
+
+musique = {
+    "clean_name": "MuSiQue",
+    "dataset_name": "multihop_reasoning",
+    "dataset_location": "dgslibisey/MuSiQue",
+    "options": None,
+    "subset": "train",
+    "task_type": "qa",
+    "dict_ans": True, # MuSiQue answers are usually in a list/dict format
+    "doc_to_text": doc_to_text_musique,
+    "doc_to_ans": doc_to_answer_qa
+}
