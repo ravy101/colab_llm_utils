@@ -199,7 +199,7 @@ class LlamaHelper:
           self.model = model_config['hf_model_func'].from_pretrained(
               model_config['model_name'],
               quantization_config=model_config['bnb_config'],
-              device_map="auto",
+              device_map="sequential",
               max_memory=max_memory,
               offload_folder="offload",
               #torch_dtype=torch.bfloat16,
