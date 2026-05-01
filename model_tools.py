@@ -204,7 +204,7 @@ class LlamaHelper:
               offload_folder="offload",
               #torch_dtype=torch.bfloat16,
               dtype=torch.bfloat16,
-              low_cpu_mem_usage=True
+              low_cpu_mem_usage=True,
               #device_map=device_map,
               trust_remote_code=True
 
