@@ -189,7 +189,7 @@ mistral_small24 = {
 qwen3_8b = {
     "model_name": "Qwen/Qwen3-8B",
     "hf_model_func": AutoModelForCausalLM,
-    "bnb_config": single_quant_cfg,
+    "bnb_config": double_quant_cfg,
     "block_limit": None 
 }
 
