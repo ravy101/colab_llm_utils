@@ -185,7 +185,6 @@ mistral_small24 = {
     "block_limit": None
 }
 
-# M_small: The Reasoning Specialist
 qwen3_8b = {
     "model_name": "Qwen/Qwen3-8B",
     "hf_model_func": AutoModelForCausalLM,
@@ -193,7 +192,6 @@ qwen3_8b = {
     "block_limit": None 
 }
 
-# The "Middle Child": Great for testing the Scaling axis
 qwen3_14b = {
     "model_name": "Qwen/Qwen3-14B",
     "hf_model_func": AutoModelForCausalLM,
@@ -201,7 +199,6 @@ qwen3_14b = {
     "block_limit": None
 }
 
-# M_large: The Performance Anchor (Fits on A100 40GB in 4-bit)
 qwen3_32b = {
     "model_name": "Qwen/Qwen3-32B",
     "hf_model_func": AutoModelForCausalLM,
