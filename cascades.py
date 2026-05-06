@@ -165,6 +165,11 @@ class MultiaxialCascade:
         print(f"Registered {[ax + ": " + str(position[i]) for i, ax in enumerate(self.axes_names)]} | Shape: {df.shape}")
 
 
+    def normalize_dfs(self):
+        min_len = min([len(df) for df in self.registry.values()])
+        for df in self.registry.values():    
+            df.drop(df.index[min_len:], inplace=True)
+
     def resolve_deferred(self, rows_index, from_position):
         return False
 
