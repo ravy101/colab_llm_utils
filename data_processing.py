@@ -72,6 +72,11 @@ def process_dataframe(df, dataset_config, metric_dict, self_conf = False, p_true
           targets = ans
         else:
           targets = ans['normalized_aliases']
+      elif dataset_config['clean_name'] == 'StrategyQA':
+        if ans == "True":
+          ans = ["True", "true", "Yes", "yes"]
+        elif ans == "False":
+          ans = ["False", "false", "No", "no"]
       else:
         targets = ans
       response = out
