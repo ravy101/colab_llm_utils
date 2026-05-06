@@ -145,34 +145,79 @@ def post_hoc_oof_cont(
 
 
 class MultiaxialCascade:
-    def __init__(self, origin_df, axes_names, metric_col="gpt_score"):
-        """
-        Args:
-            origin_df (pd.DataFrame): The small model's base inference.
-            axes_names (list): Names of escalation paths (e.g., ['knowledge', 'reasoning', 'large']).
-            metric_col (str): The column used to determine "success" (e.g., 'gpt_score').
-        """
+    def __init__(self, origin_df, axes_names, metric_col="gpt_score", fill_undefined = True):
+
         self.metric_col = metric_col
         self.axes_names = axes_names
-        
-        # Ensure prompt_id is our alignment key
-        if 'prompt_id' not in origin_df.columns and origin_df.index.name != 'prompt_id':
-            raise ValueError("Dataframe must contain 'prompt_id' column or index.")
             
-        self.origin = origin_df.set_index('prompt_id') if 'prompt_id' in origin_df.columns else origin_df
+        self.origin = (0,) * len(axes_names)
         
-        # Internal registry: {axis_name: {position_int: dataframe}}
-        self.registry = {name: {} for name in axes_names}
-        self.registry['origin'] = {0: self.origin}
+        # Internal registry: {tuple(int, int): dataframe}
+        
+        self.registry = {self.origin: origin_df}
 
-    def register_axis_data(self, df, axis_name, position):
+    def register_axis_data(self, df, position):
         """Adds a dataframe for a specific point in the cascade grid."""
-        if axis_name not in self.registry:
-            raise ValueError(f"Axis '{axis_name}' not defined in constructor.")
+        if len(position) != len(self.axes_names):
+            raise ValueError(f"Position invalid, expexted {len(self.axes_names)} dimensions.")
             
-        indexed_df = df.set_index('prompt_id') if 'prompt_id' in df.columns else df
-        self.registry[axis_name][position] = indexed_df
-        print(f"Registered {axis_name} (Pos: {position}) | Rows: {len(indexed_df)}")
+        self.registry[position] = df
+        print(f"Registered {[ax + ": " + str(position[i]) for i, ax in enumerate(self.axes_names)]} | Shape: {df.shape}")
+
+
+    def resolve_deferred(self, rows_index, from_position):
+        return False
+
+
+    def full_threshold_sim_temp(self, def_col, next_df_pos, metric_override = None, axis_fn = None):
+        #print(f"deferring by {col}")
+        if metric_override:
+            metric = metric_override
+        else:
+            metric = self.metric_col
+
+        df = self.registry[self.origin]
+        df_large = self.registry[next_df_pos]
+        thresh = np.linspace(0- .001, 1 +0.0011,200)
+        accs = []
+        n_deferred = []
+        p_deferred = []
+        accept_acc = []
+        deferred_acc = []
+        deferred_correct = []
+        coverage = []
+        ranks = df[def_col].rank(method='first')/len(df[def_col])
+        for t in thresh:
+            defer_idx = ranks > (1-t)
+            correct_current = df[metric][~defer_idx].sum()
+            correct_large = df_large[metric][defer_idx].sum()
+            accept_acc.append(df[metric][~defer_idx].mean())
+            deferred_acc.append(df_large[metric][defer_idx].mean())
+            deferred_correct.append(df_large[metric][defer_idx].sum())
+            n_deferred.append(defer_idx.sum())
+            p_deferred.append((defer_idx.sum()/len(df)))
+            coverage.append((~defer_idx).mean())
+            accs.append((correct_current + correct_large)/len(df))
+
+            # switch fn = return 0??
+
+            if len(p_deferred) > 1:
+                if p_deferred[-2] < .2 and p_deferred[-1] >= .2:
+                    p_del_20 = p_deferred.copy()
+                    accs_20 = accs.copy()
+                    p_del_20, accs_20 = misc.cap_interp_curve(p_del_20, accs_20, .2)
+                    auc_20 = np.trapezoid(accs_20, x= p_del_20)
+                if p_deferred[-2] < .4 and p_deferred[-1] >= .4:
+                    p_del_40 = p_deferred.copy()
+                    accs_40 = accs.copy()
+                    p_del_40, accs_40 = misc.cap_interp_curve(p_del_40, accs_40, .4)
+                    auc_40 = np.trapezoid(accs_40, x= p_del_40)
+
+        return {"p_deferred": p_deferred, "n_deferred":n_deferred, "deferred_correct": deferred_correct, "accepted_acc": accept_acc, "deferred_acc":deferred_acc, "accs": accs, 
+                "auc": np.trapezoid(accs, x= p_deferred), "auc_20": auc_20, "auc_40": auc_40, "accs_20": accs_20, "accs_40": accs_40, 
+                "aurc": np.trapezoid(accept_acc, x = p_deferred), "p_del_20": p_del_20, "p_del_40": p_del_40}
+
+
 
     def run_simulation(self, router_fn):
         """
@@ -238,3 +283,6 @@ class MultiaxialCascade:
             if not found:
                 optimals.append({'prompt_id': prompt_id, 'cheapest_win': 'failure', 'score': 0})
         return pd.DataFrame(optimals)
+
+def dummy_switch(row):
+    return 0
