@@ -510,10 +510,10 @@ def doc_to_text_mmlu(item):
     
     choices_str = "\n".join(formatted_choices)
     
-    return f"""Answer the following multiple choice question with a letter corresponding to the correct answer.\n
-        Question: {item['question']}
-        Choices:\n{choices_str}
-        Answer:"""
+    return f"""Answer the following multiple choice question with a letter corresponding to the correct answer.
+Question: {item['question']}
+Choices: {choices_str}\n
+Answer: """
     
 
 def doc_to_answer_mmlu(item):
@@ -528,7 +528,7 @@ mmlu = {
     "dataset_name": "all",
     "dataset_location": "cais/mmlu", # Or "RouteWorks/RouterArena" for your specific use
     "options": ["A", "B", "C", "D"],
-    "subset": "all", # MMLU has many subsets (e.g., 'abstract_algebra'), 'all' for general
+    "subset": "auxiliary_train", # MMLU has many subsets (e.g., 'abstract_algebra'), 'all' for general
     "task_type": "multiple_choice",
     "dict_ans": False, 
     "shuffle": True,
