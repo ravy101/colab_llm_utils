@@ -525,7 +525,7 @@ def doc_to_answer_mmlu(item):
 
 mmlu = {
     "clean_name": "MMLU",
-    "dataset_name": "mmlu",
+    "dataset_name": "all",
     "dataset_location": "cais/mmlu", # Or "RouteWorks/RouterArena" for your specific use
     "options": ["A", "B", "C", "D"],
     "subset": "all", # MMLU has many subsets (e.g., 'abstract_algebra'), 'all' for general
