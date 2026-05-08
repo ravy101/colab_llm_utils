@@ -1,4 +1,6 @@
 # Datsets config
+import string
+
 languages = {"en": "English", "fr": "French", "de": "German",  "cs": "Czech", "ru": "Russian"}
 
 cnn_samples = [{"article": """(CNN)French striker Bafetimbi Gomis, who has a history of fainting, said he is now "feeling well" after collapsing during Swansea's 3-2 loss at Tottenham in the Premier League on Wednesday. The worrying incident occurred in the first half at White Hart Lane -- after Tottenham scored in the seventh minute -- but the 29-year-old left the pitch conscious following about five minutes of treatment. The Guardian added that he was wearing an oxygen mask. Play was temporarily stopped before resuming. As the match progressed, Swansea tweeted that Gomis was "fine," with manager Garry Monk using the same word to describe Gomis' condition. Gomis spent the night in hospital as a precaution, Swansea said on its website. "I wanted to reassure you concerning my health," Gomis told the website. "It actually looks much scarier than it is physically dangerous, and I am feeling well now. "I have been under a great deal of stress and fatigue due to my father's health, which requires me to go back and forth from France. "I was disappointed that I couldn't help my team tonight, but now everything is back in order. I also want to thank everyone for their support and get well messages." Gomis had similar fainting spells in France, which prompted the president of his former club, Jean-Michel Aulas of Lyon, to tell French television in 2009: "We can't not be worried, it scares you each time." Swansea ran tests on Gomis, said Monk, prior to signing him on a free transfer last July. "He just has a little bit of low blood pressure which causes you a little bit of problems," Monk said in a televised interview on Sky. "It's been part of his life. We were well aware of that when we signed him. He's done all the hospital checks and all the medical checks you can possibly do and it's just part of his life. "It's no problems whatsoever. It's not as serious as it looks." Gomis has scored two league goals for Swansea this season, mostly in a backup role. He became the Welsh side's top striker when Wilfried Bony signed with Manchester City in January. Almost exactly three years ago at White Hart Lane, then Bolton midfielder Fabrice Muamba collapsed after suffering a cardiac arrest. He was near death, according to Bolton, but survived after being treated at the London Chest Hospital. He subsequently retired. Other footballers, including Cameroon international Marc-Vivien Foe in 2003 and Spanish international Antonio Puerta in 2007, didn't survive after collapsing on the pitch.""",
@@ -330,7 +332,8 @@ wmt14 = {"clean_name": "wmt14fr-en",
         "options": None,
         "subset": "train",
         "task_type": "translation",
-        "dict_ans": False,
+        "dict_ans": False, 
+        "shuffle": True,
         "doc_to_text": doc_to_text_wmt_fr_few_shot,
         "doc_to_ans": doc_to_answer_wmt_fr}
 
@@ -340,7 +343,8 @@ triviaqa = {"clean_name": "TriviaQA",
         "options": None,
         "subset": "train",
         "task_type": "qa",
-        "dict_ans": True,
+        "dict_ans": True, 
+        "shuffle": True,
         "doc_to_text": doc_to_text_qa,
         "doc_to_ans": doc_to_answer_qa}
 
@@ -351,7 +355,8 @@ hotpotqa = {"clean_name": "HotpotQA",
         "options": None,
         "subset": "train",
         "task_type": "qa",
-        "dict_ans": True,
+        "dict_ans": True, 
+        "shuffle": True,
         "doc_to_text": doc_to_text_hotpot,
         "doc_to_ans": doc_to_ans_hotpot}
 
@@ -362,7 +367,8 @@ nqopen = {"clean_name": "NQOpen",
         "options": None,
         "subset": "train",
         "task_type": "qa",
-        "dict_ans": False,
+        "dict_ans": False, 
+        "shuffle": True,
         "doc_to_text": doc_to_text_nq,
         "doc_to_ans": doc_to_answer_qa}
 
@@ -372,7 +378,8 @@ truthfulqa = {"clean_name": "TruthfulQA",
         "options": None,
         "subset": "validation",
         "task_type": "qa",
-        "dict_ans": True,
+        "dict_ans": True, 
+        "shuffle": True,
         "doc_to_text": doc_to_text_truthful,
         "doc_to_ans": doc_to_answer_truthful}
 
@@ -382,7 +389,8 @@ wmt14ru = {"clean_name": "wmt14ru-en",
         "options": None,
         "subset": "test",
         "task_type": "translation",
-        "dict_ans": False,
+        "dict_ans": False, 
+        "shuffle": True,
         "doc_to_text": doc_to_text_wmt_ru,
         "doc_to_ans": doc_to_answer_wmt_ru}
 
@@ -392,7 +400,8 @@ wmt19de = {"clean_name": "wmt19de-en",
         "options": None,
         "subset": "train",
         "task_type": "translation",
-        "dict_ans": False,
+        "dict_ans": False, 
+        "shuffle": True,
         "doc_to_text": doc_to_text_wmt_de_few_shot,
         "doc_to_ans": doc_to_answer_wmt_de}
 
@@ -403,7 +412,8 @@ wmt14de = {"clean_name": "wmt14de-en",
         "options": None,
         "subset": "train",
         "task_type": "translation",
-        "dict_ans": False,
+        "dict_ans": False, 
+        "shuffle": True,
         "doc_to_text": doc_to_text_wmt_de_few_shot,
         "doc_to_ans": doc_to_answer_wmt_de}
 
@@ -413,7 +423,8 @@ sciq = {"clean_name": "SciQ",
         "options": None,
         "subset": "train",
         "task_type": "qa",
-        "dict_ans": False,
+        "dict_ans": False, 
+        "shuffle": True,
         "doc_to_text": doc_to_text_sciq,
         "doc_to_ans": doc_to_answer_sciq}
 
@@ -424,7 +435,8 @@ xsum = {
     "options": None,
     "subset": "train",
     "task_type": "summarization",
-    "dict_ans": False,
+    "dict_ans": False, 
+    "shuffle": True,
     "doc_to_text": doc_to_text_xsum,
     "doc_to_ans": doc_to_summary_xsum,
 }
@@ -436,7 +448,8 @@ samsum = {
     "options": None,
     "subset": "train",
     "task_type": "summarization",
-    "dict_ans": False,
+    "dict_ans": False, 
+    "shuffle": True,
     "doc_to_text": doc_to_text_summarization,
     "doc_to_ans": doc_to_summary,
 }
@@ -448,7 +461,8 @@ cnn_dailymail = {
     "options": None,
     "subset": "train",
     "task_type": "summarization",
-    "dict_ans": False,
+    "dict_ans": False, 
+    "shuffle": True,
     "doc_to_text": doc_to_text_cnn,
     "doc_to_ans": doc_to_summary_cnn,
 }
@@ -464,7 +478,8 @@ strategyqa = {
     "options": ["Yes", "No"],
     "subset": "train",
     "task_type": "qa",
-    "dict_ans": False, # Usually stored as a direct boolean/string
+    "dict_ans": False, # Usually stored as a direct boolean/string 
+    "shuffle": True,
     "doc_to_text": doc_to_text_strategyqa, # Needs to prompt for "Step-by-step"
     "doc_to_ans": doc_to_answer_qa
 }
@@ -479,7 +494,44 @@ musique = {
     "options": None,
     "subset": "train",
     "task_type": "qa",
-    "dict_ans": True, # MuSiQue answers are usually in a list/dict format
+    "dict_ans": True, # MuSiQue answers are usually in a list/dict format 
+    "shuffle": True,
     "doc_to_text": doc_to_text_musique,
     "doc_to_ans": doc_to_answer_qa
+}
+
+def doc_to_text_mmlu(item):
+    choices = item.get('choices', [])
+    
+    formatted_choices = []
+    for i, choice in enumerate(choices):
+        letter = string.ascii_uppercase[i]
+        formatted_choices.append(f"{letter}. {choice}")
+    
+    choices_str = "\n".join(formatted_choices)
+    
+    return f"""Answer the following multiple choice question with a letter corresponding to the correct answer.\n
+        Question: {item['question']}
+        Choices:\n{choices_str}
+        Answer:"""
+    
+
+def doc_to_answer_mmlu(item):
+    ans = item.get('answer', item.get('Answer'))
+    # If the answer is already a letter, return it; if it's an index, map it.
+    if isinstance(ans, int):
+        return string.ascii_uppercase[ans]
+    return str(ans)
+
+mmlu = {
+    "clean_name": "MMLU",
+    "dataset_name": "mmlu",
+    "dataset_location": "cais/mmlu", # Or "RouteWorks/RouterArena" for your specific use
+    "options": ["A", "B", "C", "D"],
+    "subset": "all", # MMLU has many subsets (e.g., 'abstract_algebra'), 'all' for general
+    "task_type": "multiple_choice",
+    "dict_ans": False, 
+    "shuffle": True,
+    "doc_to_text": doc_to_text_mmlu,
+    "doc_to_ans": doc_to_answer_mmlu
 }
