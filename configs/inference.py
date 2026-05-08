@@ -45,3 +45,19 @@ translation = {
         "thinking": False,
         "terminators": ["\n", "\n\n"],
 }
+
+multiple_choice = {
+        "task_type": "multiple_choice",
+        "temperature": 1.0,
+        "output_ratio": 1.0,
+        "do_sample": False,
+        "top_k": 0,
+        "top_p": 1.0,
+        "repetition_penalty": 1.2,
+        "max_new_tokens": 6,
+        "n_samples": 2000,
+        "samples_per_file": 50,
+        "skip_intermediates": True,
+        "thinking": False,
+        "terminators": ["Question:", "Explanation:","\n\n", "\n"],
+}
