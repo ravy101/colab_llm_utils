@@ -145,7 +145,7 @@ def post_hoc_oof_cont(
 
 
 class MultiaxialCascade:
-    def __init__(self, origin_df, axes_names, metric_col="gpt_score", fill_undefined = True):
+    def __init__(self, origin_df, axes_names, metric_col="gpt_score", fill_undefined = True, k=4, seed=42):
 
         self.metric_col = metric_col
         self.axes_names = axes_names
@@ -155,20 +155,100 @@ class MultiaxialCascade:
         # Internal registry: {tuple(int, int): dataframe}
         
         self.registry = {self.origin: origin_df}
+        self.cost_registry = {self.origin: 1}
 
-    def register_axis_data(self, df, position):
+        # model registry {tuple(int, int): List<Model>}
+        self.model_registry = {}
+        self.kf = KFold(
+        n_splits=k,
+        shuffle=True,
+        random_state=seed
+    )
+
+    def register_axis_data(self, df, position, cost):
         """Adds a dataframe for a specific point in the cascade grid."""
         if len(position) != len(self.axes_names):
             raise ValueError(f"Position invalid, expexted {len(self.axes_names)} dimensions.")
             
         self.registry[position] = df
-        print(f"Registered {[ax + ": " + str(position[i]) for i, ax in enumerate(self.axes_names)]} | Shape: {df.shape}")
+        self.cost_registry[position] = cost
+        print(f"Registered {[ax + ": " + str(position[i]) for i, ax in enumerate(self.axes_names)]} | Shape: {df.shape} | Cost: {cost}")
+        self.normalize_dfs()
 
 
     def normalize_dfs(self):
         min_len = min([len(df) for df in self.registry.values()])
-        for df in self.registry.values():    
-            df.drop(df.index[min_len:], inplace=True)
+        for df in self.registry.values():   
+            if len(df) > min_len:
+                print(f"Dropping {len(df) - min_len} rows for consistency.") 
+                df.drop(df.index[min_len:], inplace=True)
+
+    def compute_cv_splits(self):   
+        """Generate fold indeces and fix them across all dataframes."""
+        df = self.registry[self.origin]
+        df['fold'] = -1
+
+        for fold_idx, (_, test_indices) in enumerate(self.kf.split(df)):
+            df.iloc[test_indices, df.columns.get_loc('fold')] = fold_idx
+        
+        origin_fold = df['fold']
+
+        for other_df in self.registry.values():
+            other_df['fold'] = origin_fold
+
+    
+    def fit_post_hoc_at(self,
+    position,
+    feature_cols,
+    target_col,
+    rf_kwargs=None,
+    model_type = RandomForestClassifier
+):
+        """
+        Returns out-of-fold predictions for each row in df using 5-fold CV.
+        """
+        df = self.registry[position]
+
+        for c in feature_cols:
+            if c not in list(df.columns):
+                print(f"feature {c} not found in dataframe.")
+                feature_cols.remove(c)
+
+        if rf_kwargs is None:
+            rf_kwargs = {}
+
+        X = df[feature_cols].values
+        
+        target_dict = {0:df[[self.metric_col]]}
+        # setup targets
+        deferral_options = {0:position} # 0 index is keep for this model
+        for i, _ in enumerate(self.axes_names):
+            pos = position.copy()
+            pos[i] = pos[i] + 1
+            deferral_options[i+1] = pos
+            target_dict[i+1] = self.registry[pos][self.metric_col]
+
+        target_df = pd.DataFrame(target_dict).idxmax(axis=1)
+        y = target_df.values
+
+        oof_preds = np.zeros(len(df))
+
+        for i in range(self.kf.get_n_splits()):
+            train_idx = df['fold'] != i
+            val_idx = df['fold'] == i
+            X_train, X_val = X[train_idx], X[val_idx]
+            y_train = y[train_idx]
+
+            model = model_type(
+                **rf_kwargs
+            )
+
+            model.fit(X_train, y_train)
+            oof_preds[val_idx] = model.predict(X_val)
+
+        return pd.Series(oof_preds, index=df.index, name="oof_prediction"):
+
+        
 
     def resolve_deferred(self, rows_index, from_position):
         return False
