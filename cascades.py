@@ -245,8 +245,8 @@ class MultiaxialCascade:
 
             model.fit(X_train, y_train)
             oof_preds[val_idx] = model.predict(X_val)
-
-        return pd.Series(oof_preds, index=df.index, name="oof_prediction"):
+        df['oof_preds'] = oof_preds
+        return pd.Series(oof_preds, index=df.index, name="oof_prediction")
 
         
 
