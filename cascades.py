@@ -237,7 +237,10 @@ class MultiaxialCascade:
         print(f"targets:{targets.describe()}")
         y = targets
 
-        oof_preds = np.zeros((len(df), len(self.axes_names)+ 1))
+        all_classes = np.arange(len(self.axes_names) + 1)
+        n_classes = len(all_classes)
+        oof_preds = np.zeros((len(df), n_classes))
+
 
         for i in range(self.kf.get_n_splits()):
             train_idx = df['fold'] != i
@@ -250,8 +253,15 @@ class MultiaxialCascade:
             )
 
             model.fit(X_train, y_train)
-            oof_preds[val_idx] = model.predict_proba(X_val)
+            probs = model.predict_proba(X_val)
+            present_classes = model.classes_
+
+            aligned = np.zeros((len(X_val), n_classes))
+            aligned[:, present_classes] = probs
+
+            oof_preds[val_idx] = aligned
         df['post_hoc'] = oof_preds[:,0]
+        df['post_hoc'] = 1 - df['post_hoc']
         def_destinations = []
         for idx in oof_preds[:, 1:].argmax(axis=1):
           l = list(position)
