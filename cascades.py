@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
@@ -200,7 +201,6 @@ class MultiaxialCascade:
     def fit_post_hoc_at(self,
     position,
     feature_cols,
-    target_col,
     rf_kwargs=None,
     model_type = RandomForestClassifier
 ):
@@ -218,20 +218,26 @@ class MultiaxialCascade:
             rf_kwargs = {}
 
         X = df[feature_cols].values
-        
-        target_dict = {0:df[[self.metric_col]]}
+
+        target_dict = {0:df[self.metric_col]}
         # setup targets
         deferral_options = {0:position} # 0 index is keep for this model
         for i, _ in enumerate(self.axes_names):
-            pos = position.copy()
-            pos[i] = pos[i] + 1
+            pos = copy.deepcopy(position)
+            pos = pos[:i] + (pos[i] + 1,) + pos[i+1:]
+
+            #pos[i] = pos[i] + 1
             deferral_options[i+1] = pos
             target_dict[i+1] = self.registry[pos][self.metric_col]
 
-        target_df = pd.DataFrame(target_dict).idxmax(axis=1)
-        y = target_df.values
+        target_df = pd.DataFrame(target_dict)
 
-        oof_preds = np.zeros(len(df))
+        print(f"target dict shape {target_df.shape}")
+        targets = target_df.idxmax(axis=1)
+        print(f"targets:{targets.describe()}")
+        y = targets
+
+        oof_preds = np.zeros((len(df), len(self.axes_names)+ 1))
 
         for i in range(self.kf.get_n_splits()):
             train_idx = df['fold'] != i
@@ -244,25 +250,41 @@ class MultiaxialCascade:
             )
 
             model.fit(X_train, y_train)
-            oof_preds[val_idx] = model.predict(X_val)
-        df['oof_preds'] = oof_preds
-        return pd.Series(oof_preds, index=df.index, name="oof_prediction")
+            oof_preds[val_idx] = model.predict_proba(X_val)
+        df['post_hoc'] = oof_preds[:,0]
+        def_destinations = []
+        for idx in oof_preds[:, 1:].argmax(axis=1):
+          l = list(position)
+          l[idx] = l[idx] + 1
+          def_destinations.append(tuple(l))
+        df['preferred_deferral']  = def_destinations
+        return pd.DataFrame(oof_preds, index=df.index)
 
         
 
-    def resolve_deferred(self, rows_index, from_position):
-        return False
+    def resolve_full_deferred(self, from_position):
+        idx = self.registry[from_position].index
+        rows = []
+        for i in idx:
+          target_position = self.registry[from_position].loc[i]['preferred_deferral']
+          rows.append(self.registry[target_position].loc[i])
+        return pd.DataFrame(rows)
 
 
-    def full_threshold_sim_temp(self, def_col, next_df_pos, metric_override = None, axis_fn = None):
+
+
+    def full_threshold_sim_temp(self, def_col, from_position = None, metric_override = None, axis_fn = None):
         #print(f"deferring by {col}")
         if metric_override:
             metric = metric_override
         else:
             metric = self.metric_col
 
+        if from_position is None:
+          from_position = self.origin
+          
         df = self.registry[self.origin]
-        df_large = self.registry[next_df_pos]
+        df_large = self.resolve_full_deferred(from_position)
         thresh = np.linspace(0- .001, 1 +0.0011,200)
         accs = []
         n_deferred = []

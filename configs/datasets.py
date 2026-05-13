@@ -510,7 +510,7 @@ def doc_to_text_mmlu(item):
     
     choices_str = "\n".join(formatted_choices)
     
-    return f"""Answer the following multiple choice question with a letter corresponding to the correct answer.
+    return f"""Answer the following multiple choice question with only the letter corresponding to the correct answer.
 Question: {item['question']}
 Choices: {choices_str}\n
 Answer: """
