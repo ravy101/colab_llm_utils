@@ -356,7 +356,7 @@ class LlamaHelper:
                 clean_up_tokenization_spaces=True,
             )
 
-            follow_up_logit_seq = token_logit_seq(follow_up_scores)
+            follow_up_logit_seq = token_logit_seq(torch.stack(follow_up_scores))
 
             follow_up_result = {
                 "text": follow_up_text,
