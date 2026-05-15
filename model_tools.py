@@ -300,41 +300,61 @@ class LlamaHelper:
 
       if follow_up_prompt:
         with torch.no_grad():
-            past_key_values = outputs.past_key_values
-
             follow_up_inputs = self.tokenizer(
                 follow_up_prompt,
                 return_tensors="pt",
                 add_special_tokens=False,
             ).to(self.model.device)
 
-            # ACTUAL GENERATION
-            follow_up_generate = self.model.generate(
+            # 1. Prime model with follow-up prompt using existing KV cache
+            step_out = self.model(
                 input_ids=follow_up_inputs.input_ids,
-                attention_mask=follow_up_inputs.attention_mask,
-                past_key_values=past_key_values,
-                max_new_tokens=64,
-                return_dict_in_generate=True,
-                output_scores=True,
+                past_key_values=outputs.past_key_values,
                 use_cache=True,
-                do_sample=False,   # or True if desired
+                return_dict=True,
             )
 
-            # Generated continuation only
-            generated_tokens = follow_up_generate.sequences[
-                0, follow_up_inputs.input_ids.shape[1]:
-            ]
+            past = step_out.past_key_values
+
+            # 2. First token prediction
+            next_token = torch.argmax(
+                step_out.logits[:, -1, :],
+                dim=-1,
+                keepdim=True,
+            )
+
+            generated_tokens = []
+            follow_up_scores = []
+
+            # 3. Autoregressive generation
+            for _ in range(64):  # adjust max_new_tokens as needed
+
+                step_out = self.model(
+                    input_ids=next_token,
+                    past_key_values=past,
+                    use_cache=True,
+                    return_dict=True,
+                )
+
+                past = step_out.past_key_values
+
+                logits = step_out.logits[:, -1, :].detach()
+                follow_up_scores.append(logits)
+
+                next_token = torch.argmax(logits, dim=-1, keepdim=True)
+                generated_tokens.append(next_token)
+
+                if next_token.item() == self.tokenizer.eos_token_id:
+                    break
+
+            # 4. Final sequence
+            generated_tokens = torch.cat(generated_tokens, dim=1)[0]
 
             follow_up_text = self.tokenizer.decode(
                 generated_tokens,
                 skip_special_tokens=True,
                 clean_up_tokenization_spaces=True,
             )
-
-            follow_up_scores = [
-                score.squeeze(0).detach()
-                for score in follow_up_generate.scores
-            ]
 
             follow_up_logit_seq = token_logit_seq(follow_up_scores)
 
