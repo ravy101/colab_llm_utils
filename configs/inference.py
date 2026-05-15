@@ -59,5 +59,5 @@ multiple_choice = {
         "samples_per_file": 50,
         "skip_intermediates": True,
         "thinking": False,
-        "terminators": ["Question:", "Explanation:","\n\n", "\n"],
+        "terminators": ["Question:", "Explanation:",'\n\n', '\n'],
 }

@@ -297,7 +297,8 @@ class LlamaHelper:
         full_probs = get_full_probs(logit_seq, hs, self.get_head(), fp_type=target_dtype)
       else:
         full_probs = {}
-
+      token_terminators = [self.tokenizer(term, return_tensors = "pt", add_special_tokens=False)[0].item() for term in self.inference['terminators']]
+      print(f"token terminators {token_terminators}")
       if follow_up_prompt:
         with torch.no_grad():
             print(f"follow up prompting with {follow_up_prompt}")
@@ -332,7 +333,7 @@ class LlamaHelper:
             follow_up_scores = []
 
             # 3. Autoregressive generation
-            for _ in range(10):  # adjust max_new_tokens as needed
+            for _ in range(4):  # adjust max_new_tokens as needed
 
                 step_out = self.model(
                     input_ids=next_token,
@@ -355,8 +356,11 @@ class LlamaHelper:
                 print(f"step and next token {decoded}")
                 generated_tokens.append(next_token)
 
+                print(f"{decoded} is it the same as {self.inference['terminators']}")
                 if (next_token.item() == self.tokenizer.eos_token_id
                     or decoded in self.inference['terminators']):
+                    break
+                if (next_token.item() in token_terminators):
                     break
 
             # 4. Final sequence
