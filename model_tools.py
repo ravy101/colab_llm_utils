@@ -190,7 +190,14 @@ class LlamaHelper:
         self.inference = inference_config
 
         self.last_out_len = None
-
+        self.token_terminators = [self.tokenizer(term, add_special_tokens=False).input_ids for term in self.inference["terminators"]
+        self.newline_token_ids = []
+        for term in ["\n", "\n\n"]:
+          ids = self.tokenizer(term, add_special_tokens=False).input_ids
+          if len(ids) == 1:
+            self.newline_token_ids.append(ids[0])
+ 
+]
         max_memory = {0: "75GiB", "cpu": "150GiB"}
 
         if existing_model is not None:
@@ -356,12 +363,11 @@ class LlamaHelper:
                 print(f"step and next token {decoded}")
                 generated_tokens.append(next_token)
 
-                print(f"{decoded} is it the same as {self.inference['terminators']}")
+                print(f"{next_token.item()} is it the same as {self.newline_token_ids}")
                 if (next_token.item() == self.tokenizer.eos_token_id
-                    or decoded in self.inference['terminators']):
+                    or next_token.item() in self.newline_token_ids):
                     break
-                if (next_token.item() in token_terminators):
-                    break
+
 
             # 4. Final sequence
             generated_tokens = torch.cat(generated_tokens, dim=1)[0]
