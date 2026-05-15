@@ -297,7 +297,7 @@ class LlamaHelper:
         full_probs = get_full_probs(logit_seq, hs, self.get_head(), fp_type=target_dtype)
       else:
         full_probs = {}
-      token_terminators = [self.tokenizer(term, return_tensors = "pt", add_special_tokens=False)[0].item() for term in self.inference['terminators']]
+      token_terminators = [self.tokenizer(term, return_tensors = "pt", add_special_tokens=False)[0] for term in self.inference['terminators']]
       print(f"token terminators {token_terminators}")
       if follow_up_prompt:
         with torch.no_grad():
