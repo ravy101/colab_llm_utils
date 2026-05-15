@@ -347,14 +347,13 @@ class LlamaHelper:
                 follow_up_scores.append(logits)
 
                 next_token = torch.argmax(logits, dim=-1, keepdim=True)
-                print(f"step and next token { self.tokenizer.decode(
+                decoded = self.tokenizer.decode(
                   next_token,
                   skip_special_tokens=True,
                   clean_up_tokenization_spaces=True,
-                )}")
+                )
+                print(f"step and next token {decoded}")
                 generated_tokens.append(next_token)
-
-                decoded = self.tokenizer.decode(next_token[0], skip_special_tokens=False)
 
                 if (next_token.item() == self.tokenizer.eos_token_id
                     or decoded in self.inference['terminators']):
