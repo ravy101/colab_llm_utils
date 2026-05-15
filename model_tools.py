@@ -306,7 +306,8 @@ class LlamaHelper:
           follow_up_outputs = self.model(
               input_ids=follow_up_ids,
               past_key_values=past_key_values,
-              use_cache=True
+              use_cache=True,
+              output_scores=True
           )
           follow_up_scores = torch.stack([s.detach().squeeze() for s in follow_up_outputs.scores] )
           follow_up_logit_seq = token_logit_seq(follow_up_scores)
