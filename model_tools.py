@@ -300,26 +300,51 @@ class LlamaHelper:
 
       if follow_up_prompt:
         with torch.no_grad():
-          output_ids = outputs.sequences
-          past_key_values = outputs.past_key_values
-          follow_up_ids = self.tokenizer(follow_up_prompt, return_tensors="pt", add_special_tokens=False).input_ids.to(self.model.device)
-          follow_up_outputs = self.model(
-              input_ids=follow_up_ids,
-              past_key_values=past_key_values,
-              use_cache=True,
-              output_scores=True
-          )
-          follow_up_scores = torch.stack([s.detach().squeeze() for s in follow_up_outputs.scores] )
-          follow_up_logit_seq = token_logit_seq(follow_up_scores)
-          follow_up_tokens = follow_up_outputs.sequences[0][-len(follow_up_logit_seq):]
-          follow_up_text = self.tokenizer.batch_decode([follow_up_tokens], skip_special_tokens=True, clean_up_tokenization_spaces=True)
-          follow_up_result = {
-             "text": follow_up_text,
-             "sequences": follow_up_outputs.sequences[0].detach().squeeze().cpu().numpy(),
-             "logits": follow_up_logit_seq,
-          }
+            past_key_values = outputs.past_key_values
 
-          meta_info['follow_up'] = follow_up_result
+            follow_up_inputs = self.tokenizer(
+                follow_up_prompt,
+                return_tensors="pt",
+                add_special_tokens=False,
+            ).to(self.model.device)
+
+            # ACTUAL GENERATION
+            follow_up_generate = self.model.generate(
+                input_ids=follow_up_inputs.input_ids,
+                attention_mask=follow_up_inputs.attention_mask,
+                past_key_values=past_key_values,
+                max_new_tokens=64,
+                return_dict_in_generate=True,
+                output_scores=True,
+                use_cache=True,
+                do_sample=False,   # or True if desired
+            )
+
+            # Generated continuation only
+            generated_tokens = follow_up_generate.sequences[
+                0, follow_up_inputs.input_ids.shape[1]:
+            ]
+
+            follow_up_text = self.tokenizer.decode(
+                generated_tokens,
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=True,
+            )
+
+            follow_up_scores = [
+                score.squeeze(0).detach()
+                for score in follow_up_generate.scores
+            ]
+
+            follow_up_logit_seq = token_logit_seq(follow_up_scores)
+
+            follow_up_result = {
+                "text": follow_up_text,
+                "sequences": generated_tokens.detach().cpu().numpy(),
+                "logits": follow_up_logit_seq,
+            }
+
+            meta_info["follow_up"] = follow_up_result
 
       return text, outputs.sequences[0].detach().squeeze().cpu().numpy(), logit_seq, full_probs, meta_info#[:len(outputs.sequences[0]) -1]
 
