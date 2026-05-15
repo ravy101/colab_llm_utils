@@ -536,12 +536,12 @@ mmlu = {
     "doc_to_ans": doc_to_answer_mmlu
 }
 
-def axis_follow_up_prompt(axes = ["knowledge", "reasoning"]):
+def axis_follow_up_prompt(axes = ["contextual information retrieval", "reasoning tokens"]):
     options = ""
     for i, a in enumerate(axes):
        options = options + f"{i+1}. {a}\n"
-    additional_prompt = f"""Additional resources in which domain would be more useful in answering the above question:
+    additional_prompt = f"""Additional resources of which type would be more useful in answering the above question:
     {options}
-    Answer: """
+    Type: """
     return additional_prompt
        

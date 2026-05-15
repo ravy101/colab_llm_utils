@@ -354,7 +354,10 @@ class LlamaHelper:
                 )}")
                 generated_tokens.append(next_token)
 
-                if next_token.item() == self.tokenizer.eos_token_id:
+                decoded = self.tokenizer.decode(next_token[0], skip_special_tokens=False)
+
+                if (next_token.item() == self.tokenizer.eos_token_id
+                    or decoded in self.inference['terminators']):
                     break
 
             # 4. Final sequence
