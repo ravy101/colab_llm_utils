@@ -190,14 +190,14 @@ class LlamaHelper:
         self.inference = inference_config
 
         self.last_out_len = None
-        self.token_terminators = [self.tokenizer(term, add_special_tokens=False).input_ids for term in self.inference["terminators"]
+        self.token_terminators = [self.tokenizer(term, add_special_tokens=False).input_ids for term in self.inference["terminators"]]
         self.newline_token_ids = []
         for term in ["\n", "\n\n"]:
           ids = self.tokenizer(term, add_special_tokens=False).input_ids
           if len(ids) == 1:
             self.newline_token_ids.append(ids[0])
  
-]
+
         max_memory = {0: "75GiB", "cpu": "150GiB"}
 
         if existing_model is not None:
