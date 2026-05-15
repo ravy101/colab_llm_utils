@@ -300,6 +300,7 @@ class LlamaHelper:
 
       if follow_up_prompt:
         with torch.no_grad():
+            print(f"follow up prompting with {follow_up_prompt}")
             follow_up_inputs = self.tokenizer(
                 follow_up_prompt,
                 return_tensors="pt",
@@ -322,12 +323,16 @@ class LlamaHelper:
                 dim=-1,
                 keepdim=True,
             )
-
+            print(f"step and next token { self.tokenizer.decode(
+                next_token,
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=True,
+            )}")
             generated_tokens = []
             follow_up_scores = []
 
             # 3. Autoregressive generation
-            for _ in range(64):  # adjust max_new_tokens as needed
+            for _ in range(10):  # adjust max_new_tokens as needed
 
                 step_out = self.model(
                     input_ids=next_token,
@@ -342,6 +347,11 @@ class LlamaHelper:
                 follow_up_scores.append(logits)
 
                 next_token = torch.argmax(logits, dim=-1, keepdim=True)
+                print(f"step and next token { self.tokenizer.decode(
+                  next_token,
+                  skip_special_tokens=True,
+                  clean_up_tokenization_spaces=True,
+                )}")
                 generated_tokens.append(next_token)
 
                 if next_token.item() == self.tokenizer.eos_token_id:
