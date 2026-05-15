@@ -528,7 +528,7 @@ mmlu = {
     "dataset_name": "all",
     "dataset_location": "cais/mmlu", # Or "RouteWorks/RouterArena" for your specific use
     "options": ["A", "B", "C", "D"],
-    "subset": "auxiliary_train", # MMLU has many subsets (e.g., 'abstract_algebra'), 'all' for general
+    "subset": "test", # MMLU has many subsets (e.g., 'abstract_algebra'), 'all' for general
     "task_type": "multiple_choice",
     "dict_ans": False, 
     "shuffle": True,
