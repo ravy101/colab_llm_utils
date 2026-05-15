@@ -535,3 +535,13 @@ mmlu = {
     "doc_to_text": doc_to_text_mmlu,
     "doc_to_ans": doc_to_answer_mmlu
 }
+
+def axis_follow_up_prompt(axes = ["knowledge", "reasoning"]):
+    options = ""
+    for i, a in enumerate(axes):
+       options = options + f"{i+1}. {a}\n"
+    additional_prompt = f"""Additional resources in which domain would be more useful in answering the above question:
+    {options}
+    Answer: """
+    return additional_prompt
+       
