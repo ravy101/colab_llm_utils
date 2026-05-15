@@ -338,7 +338,7 @@ class LlamaHelper:
 
                 past = step_out.past_key_values
 
-                logits = step_out.logits[:, -1, :].detach()
+                logits = step_out.logits[:, -1, :].detach().cpu()
                 follow_up_scores.append(logits)
 
                 next_token = torch.argmax(logits, dim=-1, keepdim=True)
@@ -356,7 +356,7 @@ class LlamaHelper:
                 clean_up_tokenization_spaces=True,
             )
 
-            follow_up_logit_seq = token_logit_seq(torch.stack(follow_up_scores))
+            follow_up_logit_seq = token_logit_seq(torch.stack([s.detach().squeeze() for s in follow_up_scores]))
 
             follow_up_result = {
                 "text": follow_up_text,
