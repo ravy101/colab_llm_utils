@@ -337,6 +337,9 @@ class LlamaHelper:
             )}")
             generated_tokens = []
             follow_up_scores = []
+            logits = step_out.logits[:, -1, :]
+            generated_tokens.append(next_token)
+            follow_up_scores.append(logits)
 
             # 3. Autoregressive generation
             for _ in range(4):  # adjust max_new_tokens as needed
