@@ -139,7 +139,7 @@ def process_dataframe(df, dataset_config, metric_dict, self_conf = False, p_true
   elif dataset_config['task_type'] == 'multiple_choice':
     for out, ans, question in zip(df['responses'], df['ans'], df['prompts']):
       targets = ans
-      response = clean_mcq_strict(out, dataset_config["options"]) 
+      response = [clean_mcq_strict(out[0], dataset_config["options"])]
 
       results.append(scorers.best_rouge_l(response, targets))
       results_em.append(scorers.best_em(response, targets))
