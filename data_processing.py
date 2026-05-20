@@ -19,7 +19,7 @@ def clean_mcq_strict(output_text, options_list):
                              ['1', '2', '3'], ['yes', 'no'], ['(0)', '(1)']).
     """
     if not output_text or not options_list:
-        return None
+        return "none"
         
     # Standardize input text
     text = output_text.strip()
