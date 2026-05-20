@@ -198,6 +198,9 @@ class MultiaxialCascade:
             other_df['fold'] = origin_fold
 
     
+    def set_pref_deferral_at(self, position, column, offset=-1):
+        self.registry[position]["preferred_deferral"] = self.registry[position][column] + offset
+
     def fit_post_hoc_at(self,
     position,
     feature_cols,

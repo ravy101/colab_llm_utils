@@ -165,3 +165,32 @@ def columnize_meta_field(df, meta_field):
 def combine_dataframe(dfs):
   df =  pd.concat(dfs).reset_index(drop=True)
   return df
+
+def coerce_to_bounded_int(output_text, min_val=1, max_val=3):
+    """
+    Coerces raw text output into a strict integer between min_val and max_val.
+    Returns -1 if the model outputs an invalid response, multiple choices, 
+    or numbers outside the allowed boundary.
+    """
+    if not output_text:
+        return -1
+        
+    text = output_text.strip()
+    
+    # 1. Catch comma-separated multi-selections or sequences first (e.g., "1,2,3")
+    # If more than one digit exists in the output, it's ambiguous/invalid for an EM match
+    all_digits = re.findall(r'\d', text)
+    if len(set(all_digits)) > 1:
+        return -1
+
+    # 2. Extract standard integers using a prefix pattern or a standalone digit check
+    # Catches: "Answer: 2", "2\n\n", "The score is 3."
+    match = re.search(r'(?:answer\s*:\s*)?(\d+)', text, re.IGNORECASE)
+    
+    if match:
+        val = int(match.group(1))
+        # 3. Check boundaries (Strictly between 1 and 3)
+        if min_val <= val <= max_val:
+            return val
+            
+    return -1
