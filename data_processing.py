@@ -140,7 +140,7 @@ def process_dataframe(df, dataset_config, metric_dict, self_conf = False, p_true
     for out, ans, question in zip(df['responses'], df['ans'], df['prompts']):
       targets = ans
       response = [clean_mcq_strict(out[0], dataset_config["options"])]
-      print(response)
+      #print(response)
 
       results.append(scorers.best_rouge_l(response, targets))
       results_em.append(scorers.best_em(response, targets))
@@ -158,7 +158,9 @@ def process_dataframe(df, dataset_config, metric_dict, self_conf = False, p_true
   return df
 
 def columnize_meta_field(df, meta_field):
-  metadata = df['meta'][meta_field]
+  metadata = [m[meta_field] for m in df['meta']]
+  for k in metadata[0].keys():
+    df[meta_field+"-"+k] = [m[k] for m in metadata]
 
 def combine_dataframe(dfs):
   df =  pd.concat(dfs).reset_index(drop=True)
