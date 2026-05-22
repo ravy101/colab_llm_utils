@@ -11,6 +11,7 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import AutoTokenizer, AutoModel
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
+import time
 
 from . import misc
 
@@ -117,6 +118,7 @@ def train_deberta_model(model, train_loader, val_loader, num_epochs=3, learning_
     for epoch in range(num_epochs):
         model.train()
         train_loss = 0.0
+        start = time.perf_counter()
         for batch in train_loader:
             input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
@@ -132,6 +134,8 @@ def train_deberta_model(model, train_loader, val_loader, num_epochs=3, learning_
         
         scheduler.step()
         print(f"Finished epoch {epoch+1}")
+        end = time.perf_counter()
+        print(f"Iteration {i} took {end - start:0.4f} seconds")
     
     return model
 
