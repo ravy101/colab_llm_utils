@@ -100,6 +100,7 @@ class DeBERTaClassificationHead(nn.Module):
     def forward(self, input_ids, attention_mask):
         outputs = self.deberta(input_ids=input_ids, attention_mask=attention_mask)
         pooled = outputs.last_hidden_state[:, 0, :]
+        pooled = pooled.float()
         pooled = self.dropout(pooled)
         logits = self.classifier(pooled)
         return logits
