@@ -8,7 +8,8 @@ from sklearn.model_selection import KFold
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-from transformers import AutoTokenizer, AutoModel, AdamW
+from transformers import AutoTokenizer, AutoModel
+from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from . import misc
