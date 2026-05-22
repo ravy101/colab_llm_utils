@@ -135,7 +135,7 @@ def train_deberta_model(model, train_loader, val_loader, num_epochs=3, learning_
         scheduler.step()
         print(f"Finished epoch {epoch+1}")
         end = time.perf_counter()
-        print(f"Iteration {i} took {end - start:0.4f} seconds")
+        print(f"Iteration {epoch+1} took {end - start:0.4f} seconds")
     
     return model
 
