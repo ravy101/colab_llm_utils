@@ -131,6 +131,7 @@ def train_deberta_model(model, train_loader, val_loader, num_epochs=3, learning_
             train_loss += loss.item()
         
         scheduler.step()
+        print(f"Finished epoch {epoch+1}")
     
     return model
 
