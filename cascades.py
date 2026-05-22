@@ -118,7 +118,7 @@ def train_deberta_model(model, train_loader, val_loader, num_epochs=3, learning_
     
     for epoch in range(num_epochs):
         model.train()
-        train_loss = 0.0
+        total_train_loss = 0.0
         start = time.perf_counter()
         for batch in train_loader:
             input_ids = batch['input_ids'].to(device)
@@ -131,7 +131,7 @@ def train_deberta_model(model, train_loader, val_loader, num_epochs=3, learning_
             loss.backward()
             optimizer.step()
             
-            train_loss += loss.item()
+            total_train_loss += loss.item()
         
         scheduler.step()
         print(f"Finished epoch {epoch+1}")
