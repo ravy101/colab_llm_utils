@@ -5,6 +5,12 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import KFold
 
+import torch
+import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader
+from transformers import AutoTokenizer, AutoModel, AdamW
+from torch.optim.lr_scheduler import CosineAnnealingLR
+
 from . import misc
 
 def cascade_scored_samples(df, col, metric, ml_suffix='_13b'):
@@ -50,6 +56,98 @@ def cascade_scored_samples(df, col, metric, ml_suffix='_13b'):
             "aurc": np.trapezoid(accept_acc, x = p_deferred), "p_del_20": p_del_20, "p_del_40": p_del_40}
 
 
+
+
+class TextClassificationDataset(Dataset):
+    """Dataset for text classification with DeBERTa."""
+    def __init__(self, texts, labels, tokenizer, max_length=512):
+        self.texts = texts
+        self.labels = labels
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+    
+    def __len__(self):
+        return len(self.texts)
+    
+    def __getitem__(self, idx):
+        text = self.texts[idx]
+        label = self.labels[idx]
+        
+        encoding = self.tokenizer(
+            text,
+            max_length=self.max_length,
+            padding='max_length',
+            truncation=True,
+            return_tensors='pt'
+        )
+        
+        return {
+            'input_ids': encoding['input_ids'].squeeze(),
+            'attention_mask': encoding['attention_mask'].squeeze(),
+            'label': torch.tensor(label, dtype=torch.long)
+        }
+
+
+class DeBERTaClassificationHead(nn.Module):
+    """DeBERTa model with classification head."""
+    def __init__(self, model_name, num_classes, dropout_rate=0.1):
+        super().__init__()
+        self.deberta = AutoModel.from_pretrained(model_name)
+        self.dropout = nn.Dropout(dropout_rate)
+        self.classifier = nn.Linear(self.deberta.config.hidden_size, num_classes)
+    
+    def forward(self, input_ids, attention_mask):
+        outputs = self.deberta(input_ids=input_ids, attention_mask=attention_mask)
+        pooled = outputs.last_hidden_state[:, 0, :]
+        pooled = self.dropout(pooled)
+        logits = self.classifier(pooled)
+        return logits
+
+
+def train_deberta_model(model, train_loader, val_loader, num_epochs=3, learning_rate=2e-5, device='cpu'):
+    """Train a DeBERTa classification model."""
+    optimizer = AdamW(model.parameters(), lr=learning_rate)
+    scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs)
+    criterion = nn.CrossEntropyLoss()
+    
+    model = model.to(device)
+    
+    for epoch in range(num_epochs):
+        model.train()
+        train_loss = 0.0
+        for batch in train_loader:
+            input_ids = batch['input_ids'].to(device)
+            attention_mask = batch['attention_mask'].to(device)
+            labels = batch['label'].to(device)
+            
+            optimizer.zero_grad()
+            logits = model(input_ids, attention_mask)
+            loss = criterion(logits, labels)
+            loss.backward()
+            optimizer.step()
+            
+            train_loss += loss.item()
+        
+        scheduler.step()
+    
+    return model
+
+
+def predict_deberta_proba(model, val_loader, num_classes, device='cpu'):
+    """Get probability predictions from DeBERTa model."""
+    model.eval()
+    all_probs = []
+    
+    with torch.no_grad():
+        for batch in val_loader:
+            input_ids = batch['input_ids'].to(device)
+            attention_mask = batch['attention_mask'].to(device)
+            
+            logits = model(input_ids, attention_mask)
+            probs = torch.softmax(logits, dim=1)
+            all_probs.append(probs.cpu().numpy())
+    
+    return np.vstack(all_probs)
 
 
 def post_hoc_oof(
@@ -271,6 +369,149 @@ class MultiaxialCascade:
           l[idx] = l[idx] + 1
           def_destinations.append(tuple(l))
         df['preferred_deferral']  = def_destinations
+        return pd.DataFrame(oof_preds, index=df.index)
+
+    def fit_post_hoc_lm_at(self,
+        position,
+        input_text_col,
+        output_text_col,
+        model_name="microsoft/deberta-v3-small",
+        num_epochs=3,
+        batch_size=8,
+        learning_rate=2e-5,
+        max_length=512,
+        device=None,
+        verbose=True
+    ):
+        """
+        Fits a DeBERTa model with classification head for post-hoc deferral prediction.
+        Uses input and output text columns to predict the best model to defer to.
+        Returns out-of-fold predictions for each row using K-fold CV.
+        
+        Args:
+            position: Position in the cascade to fit at
+            input_text_col: Column name for input text
+            output_text_col: Column name for output text
+            model_name: HuggingFace model identifier (default: microsoft/deberta-v3-small)
+            num_epochs: Number of training epochs per fold
+            batch_size: Batch size for training
+            learning_rate: Learning rate for optimizer
+            max_length: Max sequence length for tokenizer
+            device: torch device (auto-detects GPU if available)
+            verbose: Whether to print progress
+            
+        Returns:
+            DataFrame with predicted probabilities for each class
+        """
+        if device is None:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        
+        df = self.registry[position]
+        
+        for c in [input_text_col, output_text_col]:
+            if c not in list(df.columns):
+                print(f"feature {c} not found in dataframe.")
+                raise ValueError(f"Column {c} not found")
+        
+        # Combine input and output text
+        combined_texts = (df[input_text_col].astype(str) + " [SEP] " + df[output_text_col].astype(str)).values
+        
+        # Generate targets
+        target_dict = {0: df[self.metric_col]}
+        deferral_options = {0: position}
+        for i, _ in enumerate(self.axes_names):
+            pos = copy.deepcopy(position)
+            pos = pos[:i] + (pos[i] + 1,) + pos[i+1:]
+            deferral_options[i+1] = pos
+            target_dict[i+1] = self.registry[pos][self.metric_col]
+        
+        target_df = pd.DataFrame(target_dict)
+        targets = target_df.idxmax(axis=1).values
+        
+        all_classes = np.arange(len(self.axes_names) + 1)
+        n_classes = len(all_classes)
+        oof_preds = np.zeros((len(df), n_classes))
+        
+        if verbose:
+            print(f"target dict shape {target_df.shape}")
+            print(f"targets: {pd.Series(targets).describe()}")
+            print(f"Number of classes: {n_classes}")
+            print(f"Device: {device}")
+        
+        # Initialize tokenizer
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+        except Exception as e:
+            print(f"Error loading tokenizer: {e}")
+            raise
+        
+        # K-fold cross-validation
+        for fold_idx in range(self.kf.get_n_splits()):
+            if verbose:
+                print(f"Training fold {fold_idx + 1}/{self.kf.get_n_splits()}")
+            
+            train_mask = df['fold'] != fold_idx
+            val_mask = df['fold'] == fold_idx
+            
+            X_train_texts = combined_texts[train_mask]
+            X_val_texts = combined_texts[val_mask]
+            y_train = targets[train_mask]
+            
+            # Create datasets
+            train_dataset = TextClassificationDataset(
+                X_train_texts, y_train, tokenizer, max_length=max_length
+            )
+            val_dataset = TextClassificationDataset(
+                X_val_texts, targets[val_mask], tokenizer, max_length=max_length
+            )
+            
+            # Create dataloaders
+            train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+            val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+            
+            # Initialize model for this fold
+            model = DeBERTaClassificationHead(model_name, num_classes, dropout_rate=0.1)
+            
+            # Train model
+            try:
+                model = train_deberta_model(
+                    model, train_loader, val_loader,
+                    num_epochs=num_epochs,
+                    learning_rate=learning_rate,
+                    device=device
+                )
+            except Exception as e:
+                print(f"Error during training on fold {fold_idx}: {e}")
+                raise
+            
+            # Get predictions
+            probs = predict_deberta_proba(model, val_loader, n_classes, device=device)
+            
+            # Align with all classes
+            present_classes = np.arange(n_classes)
+            aligned = np.zeros((len(X_val_texts), n_classes))
+            aligned[:, present_classes] = probs
+            
+            oof_preds[val_mask] = aligned
+            
+            # Clean up to free memory
+            del model, train_dataset, val_dataset, train_loader, val_loader
+            torch.cuda.empty_cache()
+        
+        # Post-process predictions
+        df['post_hoc_lm'] = oof_preds[:, 0]
+        df['post_hoc_lm'] = 1 - df['post_hoc_lm']
+        
+        def_destinations = []
+        for idx in oof_preds[:, 1:].argmax(axis=1):
+            l = list(position)
+            l[idx] = l[idx] + 1
+            def_destinations.append(tuple(l))
+        df['preferred_deferral_lm'] = def_destinations
+        
+        if verbose:
+            print(f"Completed fit_post_hoc_lm_at at position {position}")
+        
         return pd.DataFrame(oof_preds, index=df.index)
 
         
