@@ -11,6 +11,7 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import AutoTokenizer, AutoModel
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 import time
 
 from . import misc
@@ -136,7 +137,51 @@ def train_deberta_model(model, train_loader, val_loader, num_epochs=3, learning_
         print(f"Finished epoch {epoch+1}")
         end = time.perf_counter()
         print(f"Iteration {epoch+1} took {end - start:0.4f} seconds")
-    
+        avg_train_loss = total_train_loss / len(train_loader)
+        
+        # --- VALIDATION PHASE ---
+        model.eval()
+        total_val_loss = 0.0
+        all_preds = []
+        all_labels = []
+        
+        with torch.no_grad():
+            for batch in val_loader:
+                input_ids = batch['input_ids'].to(device)
+                attention_mask = batch['attention_mask'].to(device)
+                labels = batch['label'].to(device)
+                
+                logits = model(input_ids, attention_mask)
+                loss = criterion(logits, labels)
+                total_val_loss += loss.item()
+                
+                # Get predicted class indices (highest logit)
+                preds = torch.argmax(logits, dim=-1)
+                
+                # Move to CPU and convert to list for sklearn metric evaluation
+                all_preds.extend(preds.cpu().numpy())
+                all_labels.extend(labels.cpu().numpy())
+        
+        avg_val_loss = total_val_loss / len(val_loader)
+        end = time.perf_counter()
+        
+        # --- METRIC CALCULATION ---
+        # "macro" averaging works well for multi-class; change to "binary" if doing 2-class classification
+        precision, recall, f1, _ = precision_recall_fscore_support(
+            all_labels, all_preds, average='macro', zero_division=0
+        )
+        accuracy = accuracy_score(all_labels, all_preds)
+        
+        # --- PERFORMANCE REPORT ---
+        print(f"\n================ Epoch {epoch+1}/{num_epochs} ================")
+        print(f"Time Elapsed   : {end - start:0.2f} seconds")
+        print(f"Train Loss     : {avg_train_loss:.4f}")
+        print(f"Validation Loss: {avg_val_loss:.4f}")
+        print(f"Accuracy       : {accuracy:.4f}")
+        print(f"Precision (Mac): {precision:.4f}")
+        print(f"Recall (Macro) : {recall:.4f}")
+        print(f"F1-Score (Mac) : {f1:.4f}")
+        print("=============================================")
     return model
 
 
