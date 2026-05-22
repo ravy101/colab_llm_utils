@@ -338,10 +338,12 @@ class MultiaxialCascade:
             deferral_options[i+1] = pos
             target_dict[i+1] = self.registry[pos][self.metric_col]
 
+
         target_df = pd.DataFrame(target_dict)
 
         print(f"target dict shape {target_df.shape}")
-        targets = target_df.idxmax(axis=1)
+        targets = target_df.apply(misc.biased_idxmax, axis=1)
+        #targets = target_df.idxmax(axis=1)
         print(f"targets:{targets.describe()}")
         y = targets
 
@@ -433,7 +435,8 @@ class MultiaxialCascade:
             target_dict[i+1] = self.registry[pos][self.metric_col]
         
         target_df = pd.DataFrame(target_dict)
-        targets = target_df.idxmax(axis=1).values
+        targets = target_df.apply(misc.biased_idxmax, axis=1).values
+        #targets = target_df.idxmax(axis=1).values
         
         all_classes = np.arange(len(self.axes_names) + 1)
         n_classes = len(all_classes)
@@ -523,18 +526,18 @@ class MultiaxialCascade:
 
         
 
-    def resolve_full_deferred(self, from_position):
+    def resolve_full_deferred(self, from_position, pref_def_column='preferred_deferral',):
         idx = self.registry[from_position].index
         rows = []
         for i in idx:
-          target_position = self.registry[from_position].loc[i]['preferred_deferral']
+          target_position = self.registry[from_position].loc[i][pref_def_column]
           rows.append(self.registry[target_position].loc[i])
         return pd.DataFrame(rows)
 
 
 
 
-    def full_threshold_sim_temp(self, def_col, from_position = None, metric_override = None, axis_fn = None):
+    def full_threshold_sim_temp(self, def_col, from_position = None, pref_def_column='preferred_deferral', metric_override = None, axis_fn = None):
         #print(f"deferring by {col}")
         if metric_override:
             metric = metric_override
@@ -545,7 +548,7 @@ class MultiaxialCascade:
           from_position = self.origin
           
         df = self.registry[self.origin]
-        df_large = self.resolve_full_deferred(from_position)
+        df_large = self.resolve_full_deferred(from_position, pref_def_column=pref_def_column)
         thresh = np.linspace(0- .001, 1 +0.0011,200)
         accs = []
         n_deferred = []
