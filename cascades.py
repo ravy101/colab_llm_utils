@@ -471,7 +471,7 @@ class MultiaxialCascade:
             val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
             
             # Initialize model for this fold
-            model = DeBERTaClassificationHead(model_name, num_classes, dropout_rate=0.1)
+            model = DeBERTaClassificationHead(model_name, n_classes, dropout_rate=0.1)
             
             # Train model
             try:
