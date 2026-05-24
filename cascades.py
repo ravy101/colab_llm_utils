@@ -125,10 +125,32 @@ def train_deberta_model(model, train_loader, val_loader, num_epochs=3, learning_
             attention_mask = batch['attention_mask'].to(device)
             labels = batch['label'].to(device)
             
+            # --- Additional checks for bad inputs / labels ---
+            if torch.any(input_ids < 0):
+                print("Warning: Negative input_ids detected (possible NaN text).")
+            if torch.any(attention_mask < 0):
+                print("Warning: Negative attention_mask detected.")
+            if torch.any(labels < 0):
+                print("Warning: Negative labels detected (possible NaN in targets).")
+            if hasattr(model, 'classifier') and hasattr(model.classifier, 'out_features'):
+                if torch.any(labels >= model.classifier.out_features):
+                    print(f"Warning: Labels out of bounds detected! Max label: {labels.max().item()}, Num classes: {model.classifier.out_features}")
+            # -------------------------------------------------
+            
             optimizer.zero_grad()
             logits = model(input_ids, attention_mask)
             loss = criterion(logits, labels)
+            
+            if torch.isnan(loss):
+                print(f"Warning: NaN loss detected!")
+                # Optionally uncomment the line below to drop into the debugger
+                # breakpoint()
+                
             loss.backward()
+            
+            # Add gradient clipping to prevent exploding gradients (common in DeBERTa)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            
             optimizer.step()
             
             total_train_loss += loss.item()
