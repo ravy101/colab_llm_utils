@@ -143,6 +143,10 @@ def train_deberta_model(model, train_loader, val_loader, num_epochs=3, learning_
             
             if torch.isnan(loss):
                 print(f"Warning: NaN loss detected!")
+                print(f"labels {labels}")
+                print(f"logits {logits}")
+                print(f"input_ids {input_ids}")
+                print(f"attention_mask {attention_mask}")
                 # Optionally uncomment the line below to drop into the debugger
                 # breakpoint()
                 
