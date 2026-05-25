@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from transformers import AutoTokenizer, AutoModel
-from torch.optim import AdamW
+from transformers.optimization import Adafactor
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 import time
@@ -128,7 +128,12 @@ class DeBERTaClassificationHead(nn.Module):
 
 def train_deberta_model(model, train_loader, val_loader, num_epochs=3, learning_rate=2e-5, device='cpu'):
     """Train a DeBERTa classification model."""
-    optimizer = AdamW(model.parameters(), lr=learning_rate)
+    optimizer = Adafactor(
+        model.parameters(),
+        lr=learning_rate,
+        scale_parameter=False,
+        relative_step=False
+    )
     scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs)
     criterion = nn.CrossEntropyLoss()
     
@@ -580,7 +585,7 @@ class MultiaxialCascade:
             
             # Initialize model for this fold
             model = DeBERTaClassificationHead(model_name, n_classes, dropout_rate=0.1)
-            
+            self.model_registry[position] = model
             # Train model
             try:
                 model = train_deberta_model(
