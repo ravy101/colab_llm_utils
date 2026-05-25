@@ -101,7 +101,24 @@ class DeBERTaClassificationHead(nn.Module):
     
     def forward(self, input_ids, attention_mask):
         outputs = self.deberta(input_ids=input_ids, attention_mask=attention_mask)
-        pooled = outputs.last_hidden_state[:, 0, :]
+        #pooled = outputs.last_hidden_state[:, 0, :]
+        if torch.isnan(outputs).any():
+            print("NaNs detected AFTER DeBERTa encoder!")
+
+            print("hidden stats:")
+            print(f"min: {outputs.nanmin()}")
+            print(f"max: {outputs.nanmax()}")
+
+        pooled = outputs.last_hidden_state.mean(dim=1)
+        if torch.isnan(pooled).any():
+            print("NaNs detected AFTER pooling!")
+
+            print("pooled stats:")
+            print(f"min: {pooled.nanmin()}")
+            print(f"max: {pooled.nanmax()}")
+
+            nan_idx = torch.nonzero(torch.isnan(pooled))
+            print("First pooled NaN index:", nan_idx[0])
         pooled = pooled.float()
         pooled = self.dropout(pooled)
         logits = self.classifier(pooled)
