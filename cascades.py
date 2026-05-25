@@ -144,6 +144,13 @@ def train_deberta_model(model, train_loader, val_loader, num_epochs=3, learning_
             labels = batch['label'].to(device)
             
             # --- Additional checks for bad inputs / labels ---
+            mask_sums = attention_mask.sum(dim=1)
+
+            if torch.any(mask_sums == 0):
+                print("Mask sum zero.")
+                bad_rows = (mask_sums == 0)
+                # Force CLS token visible
+                attention_mask[bad_rows, 0] = 1
             if torch.any(input_ids < 0):
                 print("Warning: Negative input_ids detected (possible NaN text).")
             if torch.any(attention_mask < 0):
@@ -555,13 +562,14 @@ class MultiaxialCascade:
             X_train_texts = combined_texts[train_mask]
             X_val_texts = combined_texts[val_mask]
             y_train = targets[train_mask]
+            y_val = targets[val_mask]
             
             # Create datasets
             train_dataset = TextClassificationDataset(
                 X_train_texts, y_train, tokenizer, max_length=max_length
             )
             val_dataset = TextClassificationDataset(
-                X_val_texts, targets[val_mask], tokenizer, max_length=max_length
+                X_val_texts, y_val, tokenizer, max_length=max_length
             )
             
             # Create dataloaders
