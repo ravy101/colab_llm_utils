@@ -174,6 +174,8 @@ def train_deberta_model(model, train_loader, val_loader, num_epochs=3, learning_
                 print(f"attention_mask {attention_mask}")
                 # Optionally uncomment the line below to drop into the debugger
                 # breakpoint()
+            else:
+                print(f"batch ok")
                 
             loss.backward()
             
