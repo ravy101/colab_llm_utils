@@ -100,7 +100,7 @@ class DeBERTaClassificationHead(nn.Module):
         self.classifier = nn.Linear(self.deberta.config.hidden_size, num_classes)
     
     def forward(self, input_ids, attention_mask):
-        outputs = self.deberta(input_ids=input_ids, attention_mask=attention_mask)
+        outputs = self.deberta(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
         #pooled = outputs.last_hidden_state[:, 0, :]
         if torch.isnan(outputs).any():
             print("NaNs detected AFTER DeBERTa encoder!")
@@ -109,7 +109,7 @@ class DeBERTaClassificationHead(nn.Module):
             print(f"min: {outputs.nanmin()}")
             print(f"max: {outputs.nanmax()}")
 
-        pooled = outputs.last_hidden_state.mean(dim=1)
+        pooled = outputs.mean(dim=1)
         if torch.isnan(pooled).any():
             print("NaNs detected AFTER pooling!")
 
