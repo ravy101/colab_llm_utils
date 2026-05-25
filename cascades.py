@@ -104,10 +104,11 @@ class DeBERTaClassificationHead(nn.Module):
         #pooled = outputs.last_hidden_state[:, 0, :]
         if torch.isnan(outputs).any():
             print("NaNs detected AFTER DeBERTa encoder!")
-
-            print("hidden stats:")
-            print(f"min: {outputs.nanmin()}")
-            print(f"max: {outputs.nanmax()}")
+            print(f"inputs: {input_ids}")
+            print(f"attention_mask: {attention_mask}")
+            print("hidden state:")
+            print(f"output shape: {outputs.shape}")
+            print(f"outputs: {outputs}")
 
         pooled = outputs.mean(dim=1)
         if torch.isnan(pooled).any():
