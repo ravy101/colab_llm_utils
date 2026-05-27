@@ -185,6 +185,13 @@ mistral_small24 = {
     "block_limit": None
 }
 
+qwen3_p6b = {
+    "model_name": "Qwen/Qwen3-0.6B",
+    "hf_model_func": AutoModelForCausalLM,
+    "bnb_config": None,
+    "block_limit": None 
+}
+
 qwen3_8b = {
     "model_name": "Qwen/Qwen3-8B",
     "hf_model_func": AutoModelForCausalLM,

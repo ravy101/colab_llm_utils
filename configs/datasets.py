@@ -544,4 +544,51 @@ def axis_follow_up_prompt(axes = ["contextual information retrieval", "reasoning
     {options}
     Type: """
     return additional_prompt
-       
+
+
+def doc_to_text_arc(item):
+    # ARC-Challenge nests 'text' inside the 'choices' dict
+    choices_data = item.get('choices', {})
+    choices = choices_data.get('text', [])
+    labels = choices_data.get('label', [])
+    
+    formatted_choices = []
+    for i, choice in enumerate(choices):
+        # Fallback to standard alphabetical letters if labels are missing or numeric
+        # though ARC typically provides its own labels (A, B, C, D or 1, 2, 3, 4)
+        letter = labels[i] if i < len(labels) else string.ascii_uppercase[i]
+        formatted_choices.append(f"{letter}. {choice}")
+    
+    choices_str = "\n".join(formatted_choices)
+    
+    return f"""Answer the following multiple choice question with only the letter corresponding to the correct answer.
+Question: {item['question']}
+Choices: {choices_str}\n
+Answer: """
+
+def doc_to_answer_arc(item):
+    # ARC uses 'answerKey' instead of 'answer'
+    ans = item.get('answerKey', '')
+    
+    # If the dataset used numeric strings (e.g., '1', '2') instead of ('A', 'B')
+    # map them safely back to letters to keep downstream parsing uniform
+    if str(ans).isdigit():
+        idx = int(ans) - 1 # 1-indexed to 0-indexed
+        if 0 <= idx < 26:
+            return string.ascii_uppercase[idx]
+            
+    return str(ans)
+
+arc_challenge = {
+    "clean_name": "ARC-Challenge",
+    "dataset_name": "ARC-Challenge", # Required configuration name for allenai/ai2_arc
+    "dataset_location": "allenai/ai2_arc",
+    "options": ["A", "B", "C", "D", "E"], # Note: Some items in ARC may have up to 5 options (E)
+    "subset": "train", # Options: 'train', 'validation', 'test'
+    "task_type": "multiple_choice",
+    "dict_ans": False, 
+    "shuffle": True,
+    "doc_to_text": doc_to_text_arc,
+    "doc_to_ans": doc_to_answer_arc
+}       
+
