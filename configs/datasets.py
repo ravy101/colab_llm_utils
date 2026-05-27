@@ -584,7 +584,7 @@ arc_challenge = {
     "dataset_name": "ARC-Challenge", # Required configuration name for allenai/ai2_arc
     "dataset_location": "allenai/ai2_arc",
     "options": ["A", "B", "C", "D", "E"], # Note: Some items in ARC may have up to 5 options (E)
-    "subset": ['train', 'test'], # Options: 'train', 'validation', 'test'
+    "subset": 'train+test', # Options: 'train', 'validation', 'test'
     "task_type": "multiple_choice",
     "dict_ans": False, 
     "shuffle": True,
