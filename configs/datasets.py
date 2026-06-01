@@ -516,6 +516,36 @@ Choices: {choices_str}\n
 Answer: """
     
 
+def doc_to_choices_mmlu(item):
+    """Return the list of choice strings for an MMLU item.
+
+    MMLU schema: choices is a list[str] (almost always length 4).
+    """
+    choices = item.get("choices")
+    if not choices:
+        raise ValueError(
+            f"MMLU item missing choices: keys={list(item.keys())}"
+        )
+    return list(choices)
+
+
+def doc_to_choices_arc(item):
+    """Return the list of choice strings for an ARC item.
+
+    ARC schema: choices = {"text": [str, ...], "label": [str, ...]}.
+    Choice count varies (mostly 4, occasionally 3 or 5). We return only
+    the text list; labels are handled by doc_to_text_arc downstream.
+    """
+    raw_choices = item.get("choices", {})
+    texts = raw_choices.get("text", [])
+    if not texts:
+        raise ValueError(
+            f"ARC item missing choice text: keys={list(item.keys())}"
+        )
+    return list(texts)
+
+
+
 def doc_to_answer_mmlu(item):
     ans = item.get('answer', item.get('Answer'))
     # If the answer is already a letter, return it; if it's an index, map it.
@@ -526,14 +556,15 @@ def doc_to_answer_mmlu(item):
 mmlu = {
     "clean_name": "MMLU",
     "dataset_name": "all",
-    "dataset_location": "cais/mmlu", # Or "RouteWorks/RouterArena" for your specific use
+    "dataset_location": "cais/mmlu",
     "options": ["A", "B", "C", "D"],
-    "subset": "test", # MMLU has many subsets (e.g., 'abstract_algebra'), 'all' for general
+    "subset": "test",
     "task_type": "multiple_choice",
-    "dict_ans": False, 
+    "dict_ans": False,
     "shuffle": True,
-    "doc_to_text": doc_to_text_mmlu,
-    "doc_to_ans": doc_to_answer_mmlu
+    "doc_to_text": "doc_to_text_mmlu",        
+    "doc_to_ans": "doc_to_answer_mmlu",       
+    "doc_to_choices": doc_to_choices_mmlu,    
 }
 
 def axis_follow_up_prompt(axes = ["contextual information retrieval", "reasoning tokens"]):
@@ -579,16 +610,19 @@ def doc_to_answer_arc(item):
             
     return str(ans)
 
+
 arc_challenge = {
     "clean_name": "ARC-Challenge",
-    "dataset_name": "ARC-Challenge", # Required configuration name for allenai/ai2_arc
+    "dataset_name": "ARC-Challenge",
     "dataset_location": "allenai/ai2_arc",
-    "options": ["A", "B", "C", "D", "E"], # Note: Some items in ARC may have up to 5 options (E)
-    "subset": 'train+test', # Options: 'train', 'validation', 'test'
+    "options": ["A", "B", "C", "D", "E"],
+    "subset": "train+test",
     "task_type": "multiple_choice",
-    "dict_ans": False, 
+    "dict_ans": False,
     "shuffle": True,
-    "doc_to_text": doc_to_text_arc,
-    "doc_to_ans": doc_to_answer_arc
-}       
+    "doc_to_text": "doc_to_text_arc",         
+    "doc_to_ans": "doc_to_answer_arc",        
+    "doc_to_choices": doc_to_choices_arc,     
+}
+   
 

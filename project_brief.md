@@ -1,90 +1,60 @@
+# Multiaxial LLM Cascades for Adaptive Reasoning, Retrieval, and Structural Alignment
 
-Project Brief:
-# Multiaxial LLM Cascades for Adaptive Reasoning and Knowledge Retrieval
+## Motivation: The Multiaxial Structure of LLM Capability and Failure
+
+Cascade systems were originally developed for **homogeneous classification tasks** — face detection, fraud detection, spam filtering, document triage — in which instance difficulty and model capacity each vary along essentially one dimension, and cost-for-capability trade-offs are approximately scalar. Under those assumptions, a one-dimensional cascade from cheap-and-weak to expensive-and-strong is the natural structure, and most subsequent cascade theory (Viola & Jones, Trapeznikov & Saligrama, and the broader confidence-thresholded deferral literature) has inherited it. The transfer of this framing to LLM cascades has been largely uncritical: recent LLM cascade work (FrugalGPT, AutoMix, cascade-aware training, mixture-of-experts routing) optimises *within* the 1-D framing rather than questioning whether the framing fits the problem.
+
+Large language models violate the foundational assumptions of classical cascade theory in three distinct ways:
+
+**1. Tasks are intrinsically heterogeneous within a single deployment.** A single LLM endpoint serves arithmetic, factual recall, code, summarisation, multi-hop reasoning, dialogue, and creative generation, often interleaved within a single user session. There is no single "task" whose difficulty distribution can be characterised, and therefore no single capability dimension along which "harder instances" are well-defined. The classical cascade premise — that a scalar difficulty signal predicts the value of escalation — is unmotivated in this setting.
+
+**2. Model capability is multidimensional, and not co-monotonic with parameter scale.** Reasoning depth, factual coverage, instruction-following, format compliance, calibration quality, language coverage, and tool-use competence vary across models and across post-training interventions, and these dimensions do not move in lockstep with parameter count. A small model augmented with retrieval can outperform a much larger model without it on knowledge-bound queries; a CoT-prompted small model can outperform a zero-shot large model on multi-step reasoning; a format-reprompted model can outperform a stronger model on extraction tasks. The failure-mode literature (compositional reasoning failures, knowledge cut-off effects, calibration drift, format brittleness) has documented this heterogeneity in detail, but has not connected it to inference-time routing.
+
+**3. The cost-for-capability surface is correspondingly multidimensional.** In classical cascades, cost is approximately a scalar function of model capacity (parameters, depth, feature count). For LLMs, cost has at least four distinct components that trade off independently against capability gains: parameter scale, prompt-conditioning overhead (few-shot exemplars, retrieved context, system prompts), sampling multiplicity (self-consistency, best-of-n), and tool-call / external-system latency. Each capability axis is associated with a *characteristic cost profile*: reasoning escalation tends to scale with sampling multiplicity, retrieval escalation with input tokens and external latency, structural escalation with conversational turns. A 1-D cascade collapses this surface to a single cost axis and is consequently unable to represent the natural cost-for-capability trade-offs available in LLM deployments.
+
+Together, these three facts imply that the one-dimensional cascade framing is not merely suboptimal for LLMs but **categorically misaligned with the structure of the problem**. Heterogeneous tasks and multidimensional capability produce *separable failure states*; a multidimensional cost surface admits *distinct cost-for-capability interventions* that a 1-D cascade cannot represent or exploit. This thesis argues that LLM cascades require a multiaxial reformulation as a consequence of the underlying structure of LLM capability, not merely as an engineering improvement, and develops the framework, evaluation methodology, and empirical evidence to support that reformulation.
+
+This positioning sits at the intersection of three active research conversations that have not previously been connected: the **failure-mode analysis of LLMs** (which establishes that LLM failures are heterogeneous but does not connect to routing), the **test-time compute allocation** literature (which establishes that capability has axes beyond scale, but typically treats inference compute as a single additional dimension), and the **cascade and routing** literature (which establishes the practical value of routing but inherits 1-D classical-cascade assumptions uncritically). The thesis joins these threads.
 
 ## Project Overview
 
-This project investigates *multiaxial large language model (LLM) cascades*: adaptive inference systems in which escalation decisions occur across multiple capability dimensions rather than a single linear model hierarchy. Traditional cascade systems typically assume a one-dimensional progression from “small/cheap” to “large/expensive” models. In contrast, this work explores whether LLM failure states are *separable across capability axes*, particularly along:
+This project investigates *multiaxial large language model cascades*: adaptive inference systems in which escalation decisions occur across multiple capability dimensions rather than along a single linear model hierarchy. Three candidate axes are investigated:
 
-* **Reasoning complexity**
-* **Knowledge retrieval / search dependency**
+* **Reasoning complexity** — failures driven by insufficient inference-time reasoning depth, addressed by interventions that increase reasoning compute (chain-of-thought, self-consistency, reasoning-distilled peer models).
+* **Knowledge retrieval / search dependency** — failures driven by missing, stale, or long-tail parametric knowledge, addressed by interventions that supply external information (RAG, reranking, agentic search).
+* **Structural alignment** — failures driven by misalignment between the model's free-form output and the structure required by the downstream task or evaluation harness, addressed by interventions that reshape input or output format (conversational reprompting, input restructuring).
 
-The core hypothesis is that many model failures are not explained solely by overall capability scale, but instead emerge from distinct competency deficits. Under this framing, a sample may require escalation specifically along a reasoning axis, a retrieval/search axis, or both, enabling more efficient and interpretable routing strategies than monolithic cascades.
+Under the multiaxial framing, a sample may require escalation along any axis, any combination of axes, or none — and the routing problem is to determine, per-sample, which axis (or axes) to escalate on, given a cost budget. The framework subsumes 1-D cascading as the special case in which only one axis is registered.
 
-The project positions itself at the intersection of:
+The structural axis is included as a peer axis on the working hypothesis that, in open-generation general-purpose datasets, structural failure modes are trivially identifiable by a post-hoc deferral model and recover a non-trivial slice of failures distinct from those addressed by reasoning or retrieval interventions. Whether structuring is genuinely separable from reasoning (in particular) or confounded with it is treated as an explicit empirical question, addressed via failure-overlap analysis (see *Separable Failure State Analysis* below). The framework accommodates conditional axis demotion: if H4 is rejected, structuring is folded into reasoning or treated as a preprocessing modifier, and the cascade is evaluated as a 2-axis system in the primary configuration without changes to the experimental infrastructure.
 
-* adaptive inference and cascade systems,
-* test-time compute allocation,
-* agentic tool-use systems,
-* retrieval-augmented reasoning,
-* and failure-state modelling in LLM evaluation.
+The broader aim is to contribute to future adaptive inference systems capable of selectively allocating reasoning depth, retrieval augmentation, structural reformulation, or agentic behaviour according to the structure of individual tasks, rather than relying solely on larger general-purpose models. The work is targeted at low-to-moderate-resource users (businesses, researchers, developers) who use LLMs out-of-the-box with post-training adaptations, rather than large AI companies with the resources to train or fine-tune LLMs themselves. This audience matters not only practically but theoretically: high-resource AI teams can paper over capability heterogeneity by training one large model that is competent across all axes, but practitioners with limited compute *cannot*, and therefore must route. **Multiaxial cascading is essentially the resource-constrained practitioner's principled response to LLM capability heterogeneity** — a response that high-resource teams do not need and have therefore not developed. In this work we train small post-hoc deferral models (up to DeBERTa-v3 scale) to provide the best performance–efficiency trade-off in the resource-limited regime.
 
-The broader aim is to contribute to future adaptive inference systems capable of selectively allocating reasoning depth, retrieval augmentation, or agentic behaviour according to the structure of individual tasks rather than relying solely on larger general-purpose models. Importantly, the work is aimed at low-to-moderate resource users (businesses, researchers, developers) who use LLMs out-of-the-box with post-training adaptations, rather than large AI companies with the resources to train or fine-tune LLMs themselves. High resource AI teams are capabale of re-training models to use tools in a specific agentic ecosystem, while in this work we train small post-hoc deferral models up to Deberta-v3 to provide the best performance-efficiency trade-off in resource limited environments or inference budgets.
+## Operating Regime and Origin Model
 
-## Experimental Framework
+The origin (cheapest tier) model in this study is an 8B-class instruction-tuned model (Qwen-8B). This choice reflects the realistic deployment regime for the target user: a competent default model strong enough to handle the majority of queries, where the cascade question is not *"whether to escalate"* but *"along which axis to escalate."* This regime is underserved by existing cascade literature, which has largely assumed either weak base models (where any escalation helps) or benchmark-tuned strong models (where the headroom for routing is artificially small). At an 8B-class origin under realistic deployment conditions, headroom is substantial, the failure pool is rich, and the question of *which* escalation is appropriate per-sample becomes both tractable and consequential.
 
-The current experimental pipeline performs exhaustive inference across datasets using multiple models representing positions on different capability axes. Outputs are stored as structured dataframe-based inference artifacts for later cascade simulation and analysis.
+## Evaluation Stance
 
-This approach enables:
+This work deliberately uses **zero-shot, free-form generation with default chat templates**, rather than the few-shot log-likelihood-scored protocols common in benchmark reporting. This is a methodological choice central to the thesis, not an incidental one:
 
-* retrospective evaluation of arbitrary cascade policies,
-* controlled ablation of routing strategies,
-* synthetic routing experiments,
-* analysis of escalation trajectories,
-* and detailed modelling of separable failure regions.
+1. **Ecological validity.** Few-shot prompt construction is contrived and does not reflect typical deployment by the target user. Reported benchmark figures under 5-shot conditions overstate deployed performance, often substantially. The deployment-condition failure pool — which is what cascading actually operates over in practice — is materially different in size and structure from the benchmark-condition failure pool.
 
-The framework currently supports:
+2. **Cost-honest evaluation.** This is an efficiency-focused study. Few-shot prompting imposes a 5–10x token overhead at every cascade tier, distorting the cost–accuracy trade-offs central to cascade evaluation. Zero-shot generation provides a faithful per-tier inference cost. We argue that **prompt-conditioning cost** (the per-tier token overhead from few-shot exemplars, system prompts, and retrieved context) is a dimension of cascade cost that has been largely invisible in prior work — because classical cascades have constant per-tier input overhead — and should be reported explicitly in the LLM setting where it varies substantially across tiers and intervention types.
 
-* axis-aware model definitions,
-* positional hierarchy assignment,
-* deterministic replay of cascades,
-* confidence-aware escalation,
-* and cross-validation over cascade policy configurations.
+3. **Relative, not absolute, performance is the object of study.** The contribution is the deferral performance of multiaxial routing relative to unidimensional cascades on the same origin model. Absolute origin accuracy is a property of the chosen evaluation protocol; the separability of failure modes and the gain from axis-aware routing are properties of the model–task interaction, which is what we measure. A cascade evaluation framed as relative gain over the same origin under the same protocol is invariant to evaluation-protocol choice in a way that absolute-accuracy claims are not.
 
-Experiments are currently executing in cloud notebook runtimes with supporting infrastructure and utility libraries cloned from private repositories.
+Consequently, observed origin-model accuracies in this work (e.g., approximately 50% on MMLU for Qwen-8B under zero-shot free-form generation, against commonly reported figures near 79% under 5-shot log-likelihood) are intentionally lower than benchmark-headline numbers. The richer failure pool produced by this regime is a methodological advantage: it provides ample, axis-diverse failures over which separability can be empirically investigated.
 
-## Current Experiments
+## Hypotheses
 
-### 1. Multiaxial Cascade Simulation
+The hypotheses below operationalise the motivation argument into falsifiable claims.
 
-Offline simulation of cascades in which samples may escalate independently across reasoning and retrieval-oriented axes. This includes evaluation of:
+* **H1 (Capability heterogeneity produces separable failure states).** Conditional on overall model capability, the residual error of an LLM on a sample is better predicted by axis-specific competency features than by a scalar difficulty estimate. Equivalently: interventions along distinct axes recover substantially non-overlapping failure subsets. This is the empirical claim corresponding to the motivation's *capability heterogeneity* premise.
 
-* sequential escalation,
-* conditional branching,
-* axis-restricted escalation,
-* and mixed escalation policies.
+* **H2 (Multiaxial routing exploits the multidimensional cost surface).** A multiaxial router achieves Pareto improvements over the best unidimensional cascade on the cost–accuracy frontier, evaluated under bounded deferral budgets (AUC up to 20% and 40% deferral fractions, and under normalised-token-cost budgets). The strength of the gain over the *best-axis* unidimensional baseline (rather than the standard scale-based 1-D baseline) directly measures the value of axis-awareness.
 
-### 2. Separable Failure State Analysis
+* **H3 (Post-hoc tractability under resource constraints).** These gains are realisable by a small (<500M parameter) post-hoc DeBERTa-v3 router operating on input and output text features, without modification of the underlying LLMs. This hypothesis is critical to the thesis's positioning toward low-to-moderate-resource practitioners: if multiaxial gains require large or trained-from-scratch routers, the practical contribution collapses.
 
-Investigation into whether incorrect responses cluster into identifiable capability regions rather than a single scalar “difficulty” continuum. Current analysis includes:
-
-* cross-axis disagreement patterns,
-* confidence calibration behaviour,
-* and tie-biased routing experiments designed to preserve axis priors.
-
-
-## Datasets
-
-Current (non-final) benchmark datasets include:
-
-* MMLU
-* ARC-Challenge
-
-These datasets were selected due to:
-
-* broad diversity of question difficulty,
-* heterogeneous reasoning requirements,
-* differing knowledge dependence,
-* and strong suitability for testing the separable failure state hypothesis.
-* easy and comparable evaluation
-
-Additional benchmarks may later be incorporated to isolate retrieval-heavy versus reasoning-heavy task structures more explicitly.
-
-## Intended Contribution
-
-The intended contribution is both conceptual and methodological:
-
-1. **Conceptual:** reframing cascade systems as multidimensional adaptive processes rather than single-axis capability ladders.
-
-2. ...
+* **H4 (Structural axis status).** Structural failures are separable from reasoning and retrieval failures, and a structuring intervention recovers a failure subset substantially distinct from those recovered by reasoning or retrieval interventions. This hypothesis is treated as falsifiable: if structural failures are largely subsumed by reasoning interventions, the structuring axis is demoted (folded into reasoning, treated as a preprocessing modifier, or removed) and the cascade is evaluated as a 2-axis system as the primary configuration. Either outcome is informative — H4 confirmation establishes structuring as a peer axis; H4 rejection establishes a methodological precedent for empirically deciding axis inclusion.
 
