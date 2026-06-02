@@ -562,8 +562,8 @@ mmlu = {
     "task_type": "multiple_choice",
     "dict_ans": False,
     "shuffle": True,
-    "doc_to_text": "doc_to_text_mmlu",        
-    "doc_to_ans": "doc_to_answer_mmlu",       
+    "doc_to_text": doc_to_text_mmlu,        
+    "doc_to_ans": doc_to_answer_mmlu,       
     "doc_to_choices": doc_to_choices_mmlu,    
 }
 
@@ -620,8 +620,8 @@ arc_challenge = {
     "task_type": "multiple_choice",
     "dict_ans": False,
     "shuffle": True,
-    "doc_to_text": "doc_to_text_arc",         
-    "doc_to_ans": "doc_to_answer_arc",        
+    "doc_to_text": doc_to_text_arc,         
+    "doc_to_ans": doc_to_answer_arc,        
     "doc_to_choices": doc_to_choices_arc,     
 }
    
