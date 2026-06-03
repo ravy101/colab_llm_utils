@@ -6,51 +6,41 @@ from . import likelihood
 from . import scorers
 from . import text
 
-
 def clean_mcq_strict(output_text, options_list):
     """
-    Cleans LLM output strictly against the allowed option structure tokens.
-    If the model outputs the right semantic answer but wrong format structure,
-    it returns None (marking it incorrect for F1/Exact Match).
-    
-    Args:
-        output_text (str): The raw string output from the local model.
-        options_list (list): The valid tokens for this dataset (e.g., ['A', 'B', 'C', 'D'], 
-                             ['1', '2', '3'], ['yes', 'no'], ['(0)', '(1)']).
+    Strictly parse MCQ outputs to one of the allowed option tokens.
+    Returns "none" if no valid option token is found.
     """
     if not output_text or not options_list:
         return "none"
-        
-    # Standardize input text
-    text = output_text.strip()
-    
-    # 1. Escape options in case they contain regex characters like parentheses: (0), (1)
+
+    raw = str(output_text)
+    txt = raw.strip()
+
     escaped_options = [re.escape(str(opt)) for opt in options_list]
     options_pattern = "|".join(escaped_options)
-    
-    # 2. Look for "Answer: <valid_option>" (case-insensitive unless your options are case-sensitive)
-    # Pattern matches: "Answer: A", "Answer: (0)", "Answer: yes"
-    answer_prefix_pattern = rf'(?:answer\s*:\s*)({options_pattern})\b'
-    prefix_match = re.search(answer_prefix_pattern, text, re.IGNORECASE)
-    
-    if prefix_match:
-        # Return the exact matching token from your options list to preserve original casing/type
-        matched_text = prefix_match.group(1).lower()
-        for original_opt in options_list:
-            if str(original_opt).lower() == matched_text:
-                return original_opt
 
-    # 3. Look for standalone option tokens at the start of lines or surrounded by boundaries
-    # This catches "D\n\n", "A.\n\n", "D Supporter(s)..."
-    for original_opt in options_list:
-        opt_str = str(original_opt)
-        # Create a strict boundary pattern for this specific token
-        # Handles plain letters/numbers or tokens wrapped in punctuation
-        opt_pattern = rf'^\s*{re.escape(opt_str)}(?:\b|\.|\s|\n|$)'
-        if re.match(opt_pattern, text, re.IGNORECASE):
-            return original_opt
-            
-    # If the model outputted "3 * 125" instead of 'C', it falls through here and returns "none"
+    # Punctuation/end boundary after the option (brace-safe: use \x7d for '}' and \x7b for '{')
+    boundary_lookahead = r"(?=\s|[\.!\)\],:;]|$|[\x7d])"  # \x7d = '}'
+
+    # 1) Prefer explicit "Answer: <option>" anywhere in the text (case-insensitive)
+    answer_prefix_pattern = (
+        rf"(?i)(?:^|[\s\n])answer\s*:\s*({options_pattern})" + boundary_lookahead
+    )
+    m = re.search(answer_prefix_pattern, txt)
+    if m:
+        matched = m.group(1).strip().lower()
+        for opt in options_list:
+            if str(opt).lower() == matched:
+                return opt
+
+    # 2) Otherwise accept a bounded standalone option token anywhere
+    for opt in options_list:
+        opt_s = str(opt)
+        opt_pattern = rf"(?i)(?:^|[\s\n]){re.escape(opt_s)}" + boundary_lookahead
+        if re.search(opt_pattern, txt):
+            return opt
+
     return "none"
 
 def process_dataframe(df, dataset_config, metric_dict, self_conf = False, p_true = False, thinking = False):
