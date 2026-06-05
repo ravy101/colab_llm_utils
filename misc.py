@@ -98,6 +98,10 @@ def biased_idxmax(row, noise_scale=1e-8, bias=1e-1):
 
     return row.index[np.argmax(values)]
 
+def basic_idxmax(row):
+    values = row.values.astype(float)
+    return row.index[np.argmax(values)]
+
 def cuda_duignostics():
     print("===== PYTHON =====")
     import sys, platform

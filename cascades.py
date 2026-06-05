@@ -490,6 +490,8 @@ class MultiaxialCascade:
         batch_size=8,
         learning_rate=2e-5,
         max_length=512,
+        simple_def_col=None,
+        target_func = misc.basic_idxmax,
         device=None,
         verbose=True
     ):
@@ -527,19 +529,26 @@ class MultiaxialCascade:
         combined_texts = (df[input_text_col].astype(str) + " [SEP] " + df[output_text_col].astype(str)).values
         
         # Generate targets
-        target_dict = {0: df[self.metric_col]}
-        deferral_options = {0: position}
+        target_dict = {}
+        #deferral_options = {}
+        option_count = 0
+        if simple_def_col is None:
+            target_dict[0] = df[self.metric_col]
+            #deferral_options[0] = position
+            option_count += 1
+        
+        
         for i, _ in enumerate(self.axes_names):
             pos = copy.deepcopy(position)
             pos = pos[:i] + (pos[i] + 1,) + pos[i+1:]
-            deferral_options[i+1] = pos
+            #deferral_options[i+1] = pos
             target_dict[i+1] = self.registry[pos][self.metric_col]
         
         target_df = pd.DataFrame(target_dict)
-        targets = target_df.apply(misc.biased_idxmax, axis=1).values
+        targets = target_df.apply(target_func, axis=1).values
         #targets = target_df.idxmax(axis=1).values
         
-        all_classes = np.arange(len(self.axes_names) + 1)
+        all_classes = target_dict.keys()
         n_classes = len(all_classes)
         oof_preds = np.zeros((len(df), n_classes))
         
@@ -611,11 +620,16 @@ class MultiaxialCascade:
             torch.cuda.empty_cache()
         
         # Post-process predictions
-        df['post_hoc_lm'] = oof_preds[:, 0]
-        df['post_hoc_lm'] = 1 - df['post_hoc_lm']
+        offset = 0
+        if simple_def_col is None:
+            df['post_hoc_lm'] = oof_preds[:, 0]
+            df['post_hoc_lm'] = 1 - df['post_hoc_lm']
+            offset = 1
+        else:
+            df['post_hoc_lm'] = df[simple_def_col]
         
         def_destinations = []
-        for idx in oof_preds[:, 1:].argmax(axis=1):
+        for idx in oof_preds[:, offset:].argmax(axis=1):
             l = list(position)
             l[idx] = l[idx] + 1
             def_destinations.append(tuple(l))
