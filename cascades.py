@@ -481,6 +481,59 @@ class MultiaxialCascade:
         df['preferred_deferral']  = def_destinations
         return pd.DataFrame(oof_preds, index=df.index)
 
+    def set_oracle_pref_deferral_at(self, position, tie_breaker=misc.biased_idxmax):
+        """
+        Sets the oracle (ground-truth) preferred deferral destination for each row
+        at `position`, based on the actual metric outcomes at each single-axis
+        escalation from `position`.
+
+        For each row, considers:
+            - keeping at `position` (class 0)
+            - escalating one step along each registered axis (classes 1..N)
+        and picks the option with the highest realised metric, breaking ties via
+        `tie_breaker` (defaults to misc.biased_idxmax, consistent with
+        fit_post_hoc_at).
+
+        Writes three columns to self.registry[position]:
+            - 'oracle_pref_idx'        : int in [0, len(axes_names)],
+                                        0 = keep, i = escalate along axis i-1
+            - 'oracle_pref_axis'       : 'keep' or self.axes_names[i-1]
+            - 'oracle_preferred_deferral' : tuple position to defer to
+                                            (equals `position` when keep is best)
+        """
+        if position not in self.registry:
+            raise KeyError(f"Position {position} not registered.")
+
+        df = self.registry[position]
+
+        # Build target frame: column 0 = stay, columns 1..N = escalate along each axis
+        target_dict = {0: df[self.metric_col].values}
+        deferral_options = {0: tuple(position)}
+
+        for i, _ in enumerate(self.axes_names):
+            pos = position[:i] + (position[i] + 1,) + position[i+1:]
+            if pos not in self.registry:
+                raise KeyError(
+                    f"Required neighbour {pos} (axis '{self.axes_names[i]}') "
+                    f"not registered; cannot compute oracle preference."
+                )
+            target_dict[i + 1] = self.registry[pos][self.metric_col].values
+            deferral_options[i + 1] = pos
+
+        target_df = pd.DataFrame(target_dict, index=df.index)
+
+        # Pick the best option per row (with tie-breaking consistent with the rest
+        # of the class). Result is an int label in {0, 1, ..., len(axes_names)}.
+        oracle_idx = target_df.apply(tie_breaker, axis=1).astype(int)
+
+        df['oracle_pref_idx'] = oracle_idx.values
+        df['oracle_pref_axis'] = oracle_idx.map(
+            lambda k: 'keep' if k == 0 else self.axes_names[k - 1]
+        ).values
+        df['oracle_preferred_deferral'] = oracle_idx.map(deferral_options).values
+
+        return df[['oracle_pref_idx', 'oracle_pref_axis', 'oracle_preferred_deferral']]
+
     def fit_post_hoc_lm_at(self,
         position,
         input_text_col,
