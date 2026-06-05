@@ -542,7 +542,7 @@ class MultiaxialCascade:
             pos = copy.deepcopy(position)
             pos = pos[:i] + (pos[i] + 1,) + pos[i+1:]
             #deferral_options[i+1] = pos
-            target_dict[i+1] = self.registry[pos][self.metric_col]
+            target_dict[i+option_count] = self.registry[pos][self.metric_col]
         
         target_df = pd.DataFrame(target_dict)
         targets = target_df.apply(target_func, axis=1).values
