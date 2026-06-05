@@ -557,6 +557,9 @@ class MultiaxialCascade:
             print(f"targets: {pd.Series(targets).describe()}")
             print(f"Number of classes: {n_classes}")
             print(f"Device: {device}")
+            print(f"Target DF")
+            print(target_df.head())
+            print(targets[:10])
         
         # Initialize tokenizer
         try:
