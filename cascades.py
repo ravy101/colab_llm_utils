@@ -630,15 +630,16 @@ class MultiaxialCascade:
             train_mask = df['fold'] != fold_idx
             val_mask = df['fold'] == fold_idx
             
+            if drop_ties:
+                not_ties_idx = (target_df.values.sum(axis=1) < n_classes) & (target_df.values.sum(axis=1) > 0)
+                train_mask = train_mask & not_ties_idx
+
             X_train_texts = combined_texts[train_mask]
             X_val_texts = combined_texts[val_mask]
             y_train = targets[train_mask]
             y_val = targets[val_mask]
             
-            if drop_ties:
-                ok_idx = (y_train.sum(axis=1) < n_classes) & (y_train.sum(axis=1) > 0)
-                y_train = y_train[ok_idx]
-                X_train_texts = X_train_texts[ok_idx]
+
 
             # Create datasets
             train_dataset = TextClassificationDataset(
