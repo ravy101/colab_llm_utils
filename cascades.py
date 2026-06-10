@@ -545,6 +545,7 @@ class MultiaxialCascade:
         max_length=512,
         simple_def_col=None,
         target_func = misc.basic_idxmax,
+        drop_ties = False,
         device=None,
         verbose=True
     ):
@@ -634,6 +635,11 @@ class MultiaxialCascade:
             y_train = targets[train_mask]
             y_val = targets[val_mask]
             
+            if drop_ties:
+                ok_idx = (y_train.sum(axis=1) < n_classes) & (y_train.sum(axis=1) > 0)
+                y_train = y_train[ok_idx]
+                X_train_texts = X_train_texts[ok_idx]
+
             # Create datasets
             train_dataset = TextClassificationDataset(
                 X_train_texts, y_train, tokenizer, max_length=max_length
