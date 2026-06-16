@@ -60,22 +60,28 @@ def cascade_scored_samples(df, col, metric, ml_suffix='_13b'):
 
 
 
-
 class TextClassificationDataset(Dataset):
-    """Dataset for text classification with DeBERTa."""
-    def __init__(self, texts, labels, tokenizer, max_length=512):
+    """Dataset for text classification / multilabel deferral with DeBERTa.
+
+    labels may be either:
+      - a scalar class index (multiclass mode), or
+      - a 1-D vector of 0/1 floats with length == n_axes (multilabel mode).
+    The dtype of the emitted label tensor is controlled by `multilabel`.
+    """
+    def __init__(self, texts, labels, tokenizer, max_length=512, multilabel=False):
         self.texts = texts
         self.labels = labels
         self.tokenizer = tokenizer
         self.max_length = max_length
-    
+        self.multilabel = multilabel
+
     def __len__(self):
         return len(self.texts)
-    
+
     def __getitem__(self, idx):
         text = self.texts[idx]
         label = self.labels[idx]
-        
+
         encoding = self.tokenizer(
             text,
             max_length=self.max_length,
@@ -83,13 +89,17 @@ class TextClassificationDataset(Dataset):
             truncation=True,
             return_tensors='pt'
         )
-        
+
+        if self.multilabel:
+            label_tensor = torch.tensor(label, dtype=torch.float)
+        else:
+            label_tensor = torch.tensor(label, dtype=torch.long)
+
         return {
             'input_ids': encoding['input_ids'].squeeze(),
             'attention_mask': encoding['attention_mask'].squeeze(),
-            'label': torch.tensor(label, dtype=torch.long)
+            'label': label_tensor
         }
-
 
 class DeBERTaClassificationHead(nn.Module):
     """DeBERTa model with classification head."""
@@ -126,8 +136,15 @@ class DeBERTaClassificationHead(nn.Module):
         return logits
 
 
-def train_deberta_model(model, train_loader, val_loader, num_epochs=3, learning_rate=2e-5, device='cpu'):
-    """Train a DeBERTa classification model."""
+def train_deberta_model(model, train_loader, val_loader, num_epochs=3, learning_rate=2e-5,
+                        device='cpu', multilabel=False, pos_weight=None, threshold=0.5):
+    """Train a DeBERTa head in either multiclass or multilabel mode.
+
+    multilabel=False -> CrossEntropyLoss, argmax metrics (original behaviour).
+    multilabel=True  -> BCEWithLogitsLoss (optional per-axis pos_weight),
+                        sigmoid>threshold metrics (per-axis + micro/macro F1).
+    The model returns raw logits in BOTH modes (no activation in forward).
+    """
     optimizer = Adafactor(
         model.parameters(),
         lr=learning_rate,
@@ -135,10 +152,18 @@ def train_deberta_model(model, train_loader, val_loader, num_epochs=3, learning_
         relative_step=False
     )
     scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs)
-    criterion = nn.CrossEntropyLoss()
-    
+
+    if multilabel:
+        if pos_weight is not None and not torch.is_tensor(pos_weight):
+            pos_weight = torch.tensor(pos_weight, dtype=torch.float)
+        if pos_weight is not None:
+            pos_weight = pos_weight.to(device)
+        criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+    else:
+        criterion = nn.CrossEntropyLoss()
+
     model = model.to(device)
-    
+
     for epoch in range(num_epochs):
         model.train()
         total_train_loss = 0.0
@@ -147,114 +172,132 @@ def train_deberta_model(model, train_loader, val_loader, num_epochs=3, learning_
             input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
             labels = batch['label'].to(device)
-            
-            # --- Additional checks for bad inputs / labels ---
-            mask_sums = attention_mask.sum(dim=1)
 
+            mask_sums = attention_mask.sum(dim=1)
             if torch.any(mask_sums == 0):
                 print("Mask sum zero.")
                 bad_rows = (mask_sums == 0)
-                # Force CLS token visible
                 attention_mask[bad_rows, 0] = 1
             if torch.any(input_ids < 0):
                 print("Warning: Negative input_ids detected (possible NaN text).")
             if torch.any(attention_mask < 0):
                 print("Warning: Negative attention_mask detected.")
-            if torch.any(labels < 0):
-                print("Warning: Negative labels detected (possible NaN in targets).")
-            if hasattr(model, 'classifier') and hasattr(model.classifier, 'out_features'):
-                if torch.any(labels >= model.classifier.out_features):
-                    print(f"Warning: Labels out of bounds detected! Max label: {labels.max().item()}, Num classes: {model.classifier.out_features}")
-            # -------------------------------------------------
-            
+
+            if not multilabel:
+                if torch.any(labels < 0):
+                    print("Warning: Negative labels detected (possible NaN in targets).")
+                if hasattr(model, 'classifier') and hasattr(model.classifier, 'out_features'):
+                    if torch.any(labels >= model.classifier.out_features):
+                        print(f"Warning: Labels out of bounds! Max label: {labels.max().item()}, "
+                              f"Num classes: {model.classifier.out_features}")
+
             optimizer.zero_grad()
             logits = model(input_ids, attention_mask)
-            loss = criterion(logits, labels)
-            
+            if multilabel:
+                loss = criterion(logits, labels.float())
+            else:
+                loss = criterion(logits, labels)
+
             if torch.isnan(loss):
-                print(f"Warning: NaN loss detected!")
+                print("Warning: NaN loss detected!")
                 print(f"labels {labels}")
                 print(f"logits {logits}")
-                print(f"input_ids {input_ids}")
-                print(f"attention_mask {attention_mask}")
-            #else:
-            #    print(f"batch ok")
-                
+
             loss.backward()
-            
-            # Add gradient clipping to prevent exploding gradients (common in DeBERTa)
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            
             optimizer.step()
-            
             total_train_loss += loss.item()
-        
+
         scheduler.step()
         print(f"Finished epoch {epoch+1}")
         end = time.perf_counter()
         print(f"Iteration {epoch+1} took {end - start:0.4f} seconds")
         avg_train_loss = total_train_loss / len(train_loader)
-        
-        # --- VALIDATION PHASE ---
+
         model.eval()
         total_val_loss = 0.0
         all_preds = []
         all_labels = []
-        
+
         with torch.no_grad():
             for batch in val_loader:
                 input_ids = batch['input_ids'].to(device)
                 attention_mask = batch['attention_mask'].to(device)
                 labels = batch['label'].to(device)
-                
+
                 logits = model(input_ids, attention_mask)
-                loss = criterion(logits, labels)
+                if multilabel:
+                    loss = criterion(logits, labels.float())
+                    preds = (torch.sigmoid(logits) > threshold).int()
+                else:
+                    loss = criterion(logits, labels)
+                    preds = torch.argmax(logits, dim=-1)
+
                 total_val_loss += loss.item()
-                
-                # Get predicted class indices (highest logit)
-                preds = torch.argmax(logits, dim=-1)
-                
-                # Move to CPU and convert to list for sklearn metric evaluation
-                all_preds.extend(preds.cpu().numpy())
-                all_labels.extend(labels.cpu().numpy())
-        
+                all_preds.append(preds.cpu().numpy())
+                all_labels.append(labels.cpu().numpy())
+
         avg_val_loss = total_val_loss / len(val_loader)
         end = time.perf_counter()
-        
-        # --- METRIC CALCULATION ---
-        # "macro" averaging works well for multi-class; change to "binary" if doing 2-class classification
-        precision, recall, f1, _ = precision_recall_fscore_support(
-            all_labels, all_preds, average='macro', zero_division=0
-        )
-        accuracy = accuracy_score(all_labels, all_preds)
-        
-        # --- PERFORMANCE REPORT ---
-        print(f"\n================ Epoch {epoch+1}/{num_epochs} ================")
-        print(f"Time Elapsed   : {end - start:0.2f} seconds")
-        print(f"Train Loss     : {avg_train_loss:.4f}")
-        print(f"Validation Loss: {avg_val_loss:.4f}")
-        print(f"Accuracy       : {accuracy:.4f}")
-        print(f"Precision (Mac): {precision:.4f}")
-        print(f"Recall (Macro) : {recall:.4f}")
-        print(f"F1-Score (Mac) : {f1:.4f}")
-        print("=============================================")
+
+        all_preds = np.concatenate(all_preds, axis=0)
+        all_labels = np.concatenate(all_labels, axis=0)
+
+        if multilabel:
+            precision, recall, f1, _ = precision_recall_fscore_support(
+                all_labels, all_preds, average='macro', zero_division=0
+            )
+            micro_p, micro_r, micro_f1, _ = precision_recall_fscore_support(
+                all_labels, all_preds, average='micro', zero_division=0
+            )
+            exact_match = (all_preds == all_labels).all(axis=1).mean()
+            print(f"\n================ Epoch {epoch+1}/{num_epochs} (multilabel) ================")
+            print(f"Time Elapsed     : {end - start:0.2f} seconds")
+            print(f"Train Loss       : {avg_train_loss:.4f}")
+            print(f"Validation Loss  : {avg_val_loss:.4f}")
+            print(f"Exact-match Acc  : {exact_match:.4f}")
+            print(f"Macro P/R/F1     : {precision:.4f} / {recall:.4f} / {f1:.4f}")
+            print(f"Micro P/R/F1     : {micro_p:.4f} / {micro_r:.4f} / {micro_f1:.4f}")
+            print("=============================================")
+        else:
+            precision, recall, f1, _ = precision_recall_fscore_support(
+                all_labels, all_preds, average='macro', zero_division=0
+            )
+            accuracy = accuracy_score(all_labels, all_preds)
+            print(f"\n================ Epoch {epoch+1}/{num_epochs} ================")
+            print(f"Time Elapsed   : {end - start:0.2f} seconds")
+            print(f"Train Loss     : {avg_train_loss:.4f}")
+            print(f"Validation Loss: {avg_val_loss:.4f}")
+            print(f"Accuracy       : {accuracy:.4f}")
+            print(f"Precision (Mac): {precision:.4f}")
+            print(f"Recall (Macro) : {recall:.4f}")
+            print(f"F1-Score (Mac) : {f1:.4f}")
+            print("=============================================")
     return model
 
 
-def predict_deberta_proba(model, val_loader, num_classes, device='cpu'):
-    """Get probability predictions from DeBERTa model."""
+def predict_deberta_proba(model, val_loader, num_classes, device='cpu', multilabel=False):
+    """Get probability predictions from a DeBERTa head.
+
+    multilabel=False -> softmax across classes (rows sum to 1).
+    multilabel=True  -> independent sigmoid per axis (columns independent).
+    Output shape is (n, num_classes) in both cases.
+    """
     model.eval()
     all_probs = []
-    
+
     with torch.no_grad():
         for batch in val_loader:
             input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
-            
+
             logits = model(input_ids, attention_mask)
-            probs = torch.softmax(logits, dim=1)
+            if multilabel:
+                probs = torch.sigmoid(logits)
+            else:
+                probs = torch.softmax(logits, dim=1)
             all_probs.append(probs.cpu().numpy())
-    
+
     return np.vstack(all_probs)
 
 
@@ -481,7 +524,7 @@ class MultiaxialCascade:
         df['preferred_deferral']  = def_destinations
         return pd.DataFrame(oof_preds, index=df.index)
 
-    def set_oracle_pref_deferral_at(self, position, tie_breaker=misc.biased_idxmax):
+    def set_oracle_pref_deferral_at(self, position, tie_breaker=misc.biased_idxmax, allow_keep=True):
         """
         Sets the oracle (ground-truth) preferred deferral destination for each row
         at `position`, based on the actual metric outcomes at each single-axis
@@ -543,164 +586,195 @@ class MultiaxialCascade:
         batch_size=8,
         learning_rate=2e-5,
         max_length=512,
+        multilabel=False,
+        recovery_fn=None,
+        use_pos_weight=True,
+        threshold=0.5,
         simple_def_col=None,
-        target_func = misc.basic_idxmax,
-        drop_ties = False,
+        target_func=misc.basic_idxmax,
         device=None,
         verbose=True
     ):
         """
-        Fits a DeBERTa model with classification head for post-hoc deferral prediction.
-        Uses input and output text columns to predict the best model to defer to.
-        Returns out-of-fold predictions for each row using K-fold CV.
-        
-        Args:
-            position: Position in the cascade to fit at
-            input_text_col: Column name for input text
-            output_text_col: Column name for output text
-            model_name: HuggingFace model identifier (default: microsoft/deberta-v3-small)
-            num_epochs: Number of training epochs per fold
-            batch_size: Batch size for training
-            learning_rate: Learning rate for optimizer
-            max_length: Max sequence length for tokenizer
-            device: torch device (auto-detects GPU if available)
-            verbose: Whether to print progress
-            
-        Returns:
-            DataFrame with predicted probabilities for each class
+        Fit a DeBERTa head for post-hoc deferral prediction, in either
+        multiclass (single best axis) or multilabel (per-axis recovery) mode.
+
+        multilabel=False (default): preserves original behaviour exactly.
+            target = target_func over [keep, axis_1..N] (or axes only if
+            simple_def_col is set); softmax + CrossEntropy; argmax routing.
+
+        multilabel=True: one independent binary target per axis = "does
+            escalating one step along this axis recover the sample?".
+            sigmoid + BCEWithLogitsLoss; per-axis probabilities written back.
+            `recovery_fn(base_score, axis_score) -> {0,1} array` defines
+            recovery; defaults to (axis_score > base_score).
+            simple_def_col / target_func are ignored in this mode.
+
+        Returns a DataFrame of OOF predictions:
+            multiclass  -> columns [keep, axis_1..N]  (simplex rows)
+            multilabel  -> columns [axis_1..N]        (independent sigmoids)
         """
         if device is None:
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        
+
         df = self.registry[position]
-        
+
         for c in [input_text_col, output_text_col]:
             if c not in list(df.columns):
                 print(f"feature {c} not found in dataframe.")
                 raise ValueError(f"Column {c} not found")
-        
-        # Combine input and output text
-        combined_texts = (df[input_text_col].astype(str) + " [SEP] " + df[output_text_col].astype(str)).values
-        
-        # Generate targets
-        target_dict = {}
-        #deferral_options = {}
-        option_count = 0
-        if simple_def_col is None:
-            target_dict[0] = df[self.metric_col]
-            #deferral_options[0] = position
-            option_count += 1
-        
-        
+
+        combined_texts = (df[input_text_col].astype(str) + " [SEP] "
+                          + df[output_text_col].astype(str)).values
+
+        # ---- neighbour positions (one step along each axis) ----
+        axis_positions = []
         for i, _ in enumerate(self.axes_names):
             pos = copy.deepcopy(position)
             pos = pos[:i] + (pos[i] + 1,) + pos[i+1:]
-            #deferral_options[i+1] = pos
-            target_dict[i+option_count] = self.registry[pos][self.metric_col]
-        
-        target_df = pd.DataFrame(target_dict)
-        targets = target_df.apply(target_func, axis=1).values
-        #targets = target_df.idxmax(axis=1).values
-        
-        all_classes = target_dict.keys()
-        n_classes = len(all_classes)
-        oof_preds = np.zeros((len(df), n_classes))
-        
+            if pos not in self.registry:
+                raise KeyError(f"Required neighbour {pos} (axis '{self.axes_names[i]}') "
+                               f"not registered.")
+            axis_positions.append(pos)
+
+        # ============================ TARGET BUILD ============================
+        if multilabel:
+            if recovery_fn is None:
+                recovery_fn = lambda base, axis: (axis > base).astype(np.float32)
+
+            base_score = df[self.metric_col].values
+            label_cols = []
+            for pos in axis_positions:
+                axis_score = self.registry[pos][self.metric_col].values
+                label_cols.append(recovery_fn(base_score, axis_score).astype(np.float32))
+            targets = np.stack(label_cols, axis=1)          # (n, n_axes) float
+            n_outputs = len(self.axes_names)
+
+            # per-axis pos_weight = n_neg / n_pos (clamped to avoid inf)
+            pos_weight = None
+            if use_pos_weight:
+                pos = targets.sum(axis=0)
+                neg = targets.shape[0] - pos
+                pos_weight = np.where(pos > 0, neg / np.maximum(pos, 1.0), 1.0)
+        else:
+            target_dict = {}
+            option_count = 0
+            if simple_def_col is None:
+                target_dict[0] = df[self.metric_col]
+                option_count += 1
+            for i, pos in enumerate(axis_positions):
+                target_dict[i + option_count] = self.registry[pos][self.metric_col]
+            target_df = pd.DataFrame(target_dict)
+            targets = target_df.apply(target_func, axis=1).values
+            n_outputs = len(target_dict)
+            pos_weight = None
+
+        oof_preds = np.zeros((len(df), n_outputs))
+
         if verbose:
-            print(f"target dict shape {target_df.shape}")
-            print(f"targets: {pd.Series(targets).describe()}")
-            print(f"Number of classes: {n_classes}")
-            print(f"Device: {device}")
-            print(f"Target DF")
-            print(target_df.head())
-            print(targets[:10])
-        
-        # Initialize tokenizer
+            print(f"mode: {'multilabel' if multilabel else 'multiclass'}")
+            print(f"n_outputs: {n_outputs} | device: {device}")
+            if multilabel:
+                rates = targets.mean(axis=0)
+                for ax, r in zip(self.axes_names, rates):
+                    print(f"  recovery rate [{ax}]: {r:.4f}")
+                if pos_weight is not None:
+                    print(f"  pos_weight: {np.round(pos_weight, 3)}")
+            else:
+                print(f"targets: {pd.Series(targets).describe()}")
+
         try:
             tokenizer = AutoTokenizer.from_pretrained(model_name)
         except Exception as e:
             print(f"Error loading tokenizer: {e}")
             raise
-        
-        # K-fold cross-validation
+
+        # ============================ K-FOLD ============================
         for fold_idx in range(self.kf.get_n_splits()):
             if verbose:
                 print(f"Training fold {fold_idx + 1}/{self.kf.get_n_splits()}")
-            
+
             train_mask = df['fold'] != fold_idx
             val_mask = df['fold'] == fold_idx
-            
-            if drop_ties:
-                not_ties_idx = (target_df.values.sum(axis=1) < n_classes) & (target_df.values.sum(axis=1) > 0)
-                train_mask = train_mask & not_ties_idx
 
-            X_train_texts = combined_texts[train_mask]
-            X_val_texts = combined_texts[val_mask]
-            y_train = targets[train_mask]
-            y_val = targets[val_mask]
-            
+            X_train_texts = combined_texts[train_mask.values]
+            X_val_texts = combined_texts[val_mask.values]
+            y_train = targets[train_mask.values]
+            y_val = targets[val_mask.values]
 
-
-            # Create datasets
             train_dataset = TextClassificationDataset(
-                X_train_texts, y_train, tokenizer, max_length=max_length
+                X_train_texts, y_train, tokenizer, max_length=max_length, multilabel=multilabel
             )
             val_dataset = TextClassificationDataset(
-                X_val_texts, y_val, tokenizer, max_length=max_length
+                X_val_texts, y_val, tokenizer, max_length=max_length, multilabel=multilabel
             )
-            
-            # Create dataloaders
+
             train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
             val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-            
-            # Initialize model for this fold
-            model = DeBERTaClassificationHead(model_name, n_classes, dropout_rate=0.1)
+
+            model = DeBERTaClassificationHead(model_name, n_outputs, dropout_rate=0.1)
             self.model_registry[position] = model
-            # Train model
             try:
                 model = train_deberta_model(
                     model, train_loader, val_loader,
                     num_epochs=num_epochs,
                     learning_rate=learning_rate,
-                    device=device
+                    device=device,
+                    multilabel=multilabel,
+                    pos_weight=pos_weight,
+                    threshold=threshold
                 )
             except Exception as e:
                 print(f"Error during training on fold {fold_idx}: {e}")
                 raise
-            
-            # Get predictions
-            probs = predict_deberta_proba(model, val_loader, n_classes, device=device)
-            
-            # Align with all classes
-            present_classes = np.arange(n_classes)
-            aligned = np.zeros((len(X_val_texts), n_classes))
-            aligned[:, present_classes] = probs
-            
-            oof_preds[val_mask] = aligned
-            
-            # Clean up to free memory
+
+            probs = predict_deberta_proba(model, val_loader, n_outputs,
+                                          device=device, multilabel=multilabel)
+
+            if multilabel:
+                # all axes always emitted; no class alignment needed
+                oof_preds[val_mask.values] = probs
+            else:
+                present_classes = np.arange(n_outputs)
+                aligned = np.zeros((len(X_val_texts), n_outputs))
+                aligned[:, present_classes] = probs
+                oof_preds[val_mask.values] = aligned
+
             del model, train_dataset, val_dataset, train_loader, val_loader
             torch.cuda.empty_cache()
-        
-        # Post-process predictions
-        offset = 0
-        if simple_def_col is None:
-            df['post_hoc_lm'] = oof_preds[:, 0]
-            df['post_hoc_lm'] = 1 - df['post_hoc_lm']
-            offset = 1
+
+        # ============================ WRITE-BACK ============================
+        if multilabel:
+            # per-axis recovery probabilities
+            for i, ax in enumerate(self.axes_names):
+                df[f'post_hoc_lm_{ax}'] = oof_preds[:, i]
+            # defer-or-not score = best available axis recovers it
+            df['post_hoc_lm'] = oof_preds.max(axis=1)
+            # preferred axis = most-likely-to-recover axis
+            best_axis = oof_preds.argmax(axis=1)
+            def_destinations = []
+            for idx in best_axis:
+                l = list(position); l[idx] = l[idx] + 1
+                def_destinations.append(tuple(l))
+            df['preferred_deferral_lm'] = def_destinations
         else:
-            df['post_hoc_lm'] = df[simple_def_col]
-        
-        def_destinations = []
-        for idx in oof_preds[:, offset:].argmax(axis=1):
-            l = list(position)
-            l[idx] = l[idx] + 1
-            def_destinations.append(tuple(l))
-        df['preferred_deferral_lm'] = def_destinations
-        
+            offset = 0
+            if simple_def_col is None:
+                df['post_hoc_lm'] = oof_preds[:, 0]
+                df['post_hoc_lm'] = 1 - df['post_hoc_lm']
+                offset = 1
+            else:
+                df['post_hoc_lm'] = df[simple_def_col]
+            def_destinations = []
+            for idx in oof_preds[:, offset:].argmax(axis=1):
+                l = list(position); l[idx] = l[idx] + 1
+                def_destinations.append(tuple(l))
+            df['preferred_deferral_lm'] = def_destinations
+
         if verbose:
-            print(f"Completed fit_post_hoc_lm_at at position {position}")
-        
+            print(f"Completed fit_post_hoc_lm_at at position {position} "
+                  f"(multilabel={multilabel})")
+
         return pd.DataFrame(oof_preds, index=df.index)
 
         
