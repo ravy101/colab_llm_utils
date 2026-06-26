@@ -333,7 +333,7 @@ wmt14 = {"clean_name": "wmt14fr-en",
         "subset": "train",
         "task_type": "translation",
         "dict_ans": False, 
-        "shuffle": True,
+        "shuffle": False,
         "doc_to_text": doc_to_text_wmt_fr_few_shot,
         "doc_to_ans": doc_to_answer_wmt_fr}
 
@@ -344,7 +344,7 @@ triviaqa = {"clean_name": "TriviaQA",
         "subset": "train",
         "task_type": "qa",
         "dict_ans": True, 
-        "shuffle": True,
+        "shuffle": False,
         "doc_to_text": doc_to_text_qa,
         "doc_to_ans": doc_to_answer_qa}
 
@@ -356,7 +356,7 @@ hotpotqa = {"clean_name": "HotpotQA",
         "subset": "train",
         "task_type": "qa",
         "dict_ans": True, 
-        "shuffle": True,
+        "shuffle": False,
         "doc_to_text": doc_to_text_hotpot,
         "doc_to_ans": doc_to_ans_hotpot}
 
@@ -368,7 +368,7 @@ nqopen = {"clean_name": "NQOpen",
         "subset": "train",
         "task_type": "qa",
         "dict_ans": False, 
-        "shuffle": True,
+        "shuffle": False,
         "doc_to_text": doc_to_text_nq,
         "doc_to_ans": doc_to_answer_qa}
 
@@ -379,7 +379,7 @@ truthfulqa = {"clean_name": "TruthfulQA",
         "subset": "validation",
         "task_type": "qa",
         "dict_ans": True, 
-        "shuffle": True,
+        "shuffle": False,
         "doc_to_text": doc_to_text_truthful,
         "doc_to_ans": doc_to_answer_truthful}
 
@@ -390,7 +390,7 @@ wmt14ru = {"clean_name": "wmt14ru-en",
         "subset": "test",
         "task_type": "translation",
         "dict_ans": False, 
-        "shuffle": True,
+        "shuffle": False,
         "doc_to_text": doc_to_text_wmt_ru,
         "doc_to_ans": doc_to_answer_wmt_ru}
 
@@ -401,7 +401,7 @@ wmt19de = {"clean_name": "wmt19de-en",
         "subset": "train",
         "task_type": "translation",
         "dict_ans": False, 
-        "shuffle": True,
+        "shuffle": False,
         "doc_to_text": doc_to_text_wmt_de_few_shot,
         "doc_to_ans": doc_to_answer_wmt_de}
 
@@ -413,7 +413,7 @@ wmt14de = {"clean_name": "wmt14de-en",
         "subset": "train",
         "task_type": "translation",
         "dict_ans": False, 
-        "shuffle": True,
+        "shuffle": False,
         "doc_to_text": doc_to_text_wmt_de_few_shot,
         "doc_to_ans": doc_to_answer_wmt_de}
 
@@ -424,7 +424,7 @@ sciq = {"clean_name": "SciQ",
         "subset": "train",
         "task_type": "qa",
         "dict_ans": False, 
-        "shuffle": True,
+        "shuffle": False,
         "doc_to_text": doc_to_text_sciq,
         "doc_to_ans": doc_to_answer_sciq}
 
@@ -436,7 +436,7 @@ xsum = {
     "subset": "train",
     "task_type": "summarization",
     "dict_ans": False, 
-    "shuffle": True,
+    "shuffle": False,
     "doc_to_text": doc_to_text_xsum,
     "doc_to_ans": doc_to_summary_xsum,
 }
@@ -449,7 +449,7 @@ samsum = {
     "subset": "train",
     "task_type": "summarization",
     "dict_ans": False, 
-    "shuffle": True,
+    "shuffle": False,
     "doc_to_text": doc_to_text_summarization,
     "doc_to_ans": doc_to_summary,
 }
@@ -462,7 +462,7 @@ cnn_dailymail = {
     "subset": "train",
     "task_type": "summarization",
     "dict_ans": False, 
-    "shuffle": True,
+    "shuffle": False,
     "doc_to_text": doc_to_text_cnn,
     "doc_to_ans": doc_to_summary_cnn,
 }
@@ -479,7 +479,7 @@ strategyqa = {
     "subset": "train",
     "task_type": "qa",
     "dict_ans": False, # Usually stored as a direct boolean/string 
-    "shuffle": True,
+    "shuffle": False,
     "doc_to_text": doc_to_text_strategyqa, # Needs to prompt for "Step-by-step"
     "doc_to_ans": doc_to_answer_qa
 }
@@ -495,7 +495,7 @@ musique = {
     "subset": "train",
     "task_type": "qa",
     "dict_ans": True, # MuSiQue answers are usually in a list/dict format 
-    "shuffle": True,
+    "shuffle": False,
     "doc_to_text": doc_to_text_musique,
     "doc_to_ans": doc_to_answer_qa
 }
@@ -619,10 +619,39 @@ arc_challenge = {
     "subset": "train+test",
     "task_type": "multiple_choice",
     "dict_ans": False,
-    "shuffle": True,
+    "shuffle": False,
     "doc_to_text": doc_to_text_arc,         
     "doc_to_ans": doc_to_answer_arc,        
     "doc_to_choices": doc_to_choices_arc,     
 }
    
 
+def doc_to_text_gooaq(item):
+    # Free-form short-answer QA prompt, matching the TriviaQA "Short Answer:" style
+    return (
+        "Provide a short answer without explanation.\n"
+        f"Question: {item['question'].strip()}\n"
+        "Short Answer:"
+    )
+
+
+def doc_to_answer_gooaq(item):
+    # GooAQ has a single gold answer string per question.
+    # Returned as a list so the F1/scoring path treats it like the
+    # other QA datasets (TriviaQA/NQ-Open) that allow multiple aliases.
+    ans = item["answer"]
+    if isinstance(ans, list):
+        return [str(a).strip() for a in ans]
+    return [str(ans).strip()]
+
+
+gooaq = {"clean_name": "gooaq",
+        "dataset_name": "rc",
+        "dataset_location": "allenai/gooaq",
+        "options": None,
+        "subset": "train",
+        "task_type": "qa",
+        "dict_ans": False, 
+        "shuffle": False,
+        "doc_to_text": doc_to_text_gooaq,
+        "doc_to_ans": doc_to_answer_gooaq}
