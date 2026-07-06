@@ -787,9 +787,130 @@ class MultiaxialCascade:
           rows.append(self.registry[target_position].loc[i])
         return pd.DataFrame(rows)
 
+    def _axis_costs(self, position):
+        """Full invocation cost of each one-step escalation destination.
+
+        Post-hoc cascade: the origin has already run, so its cost is sunk and
+        each escalation is charged the FULL destination cost (not dest - origin).
+        Returns array shape (n_axes,).
+        """
+        costs = []
+        for i, _ in enumerate(self.axes_names):
+            pos = position[:i] + (position[i] + 1,) + position[i+1:]
+            costs.append(self.cost_registry[pos])
+        return np.array(costs, dtype=float)
 
 
+    def set_cost_adjusted_pref(self, position, lam, gain=1.0,
+                               prob_cols=None, keep_prob_col=None,
+                               cost_norm="max"):
+        """Cost-adjusted deferral preference from per-axis recovery probabilities.
 
+            utility_a = gain * (p_a - p_keep) - lam * c_a      (keep utility = 0)
+
+        Route to argmax_a utility_a; defer only if that max > 0.
+
+        Args:
+            position     : cascade position to decide at.
+            lam          : cost-aversion / budget dual (0 = pure accuracy argmax).
+            gain         : value of a unit of accuracy (1.0 for 0/1 metric).
+            prob_cols    : per-axis recovery-prob columns
+                           (default: post_hoc_lm_<axis>).
+            keep_prob_col: column giving p_keep = P(origin answer correct).
+                           If None, p_keep is treated as 0 (base-failure-conditioned
+                           form; correct when probs were trained on "recovers a
+                           base failure").
+            cost_norm    : "max" -> divide costs by max axis cost;
+                           "origin" -> divide by origin cost (reads as x-origin);
+                           None -> raw costs.
+
+        Writes to self.registry[position]:
+            preferred_deferral_lm : tuple destination (== position when keep wins)
+            post_hoc_lm           : max utility margin (ranking score for sweeps)
+            pref_axis_utility     : chosen utility value
+        Returns those three columns.
+        """
+        df = self.registry[position]
+
+        if prob_cols is None:
+            prob_cols = [f'post_hoc_lm_{ax}' for ax in self.axes_names]
+        P = df[prob_cols].values                       # (n, n_axes)
+
+        p_keep = 0.0 if keep_prob_col is None else df[keep_prob_col].values[:, None]
+
+        c = self._axis_costs(position)                 # (n_axes,)
+        if cost_norm == "max" and c.max() > 0:
+            c = c / c.max()
+        elif cost_norm == "origin":
+            c = c / self.cost_registry[self.origin]
+
+        util = gain * (P - p_keep) - lam * c[None, :]  # (n, n_axes)
+        best_axis = util.argmax(axis=1)
+        best_util = util[np.arange(len(df)), best_axis]
+
+        df['post_hoc_lm'] = best_util
+        df['pref_axis_utility'] = best_util
+
+        dests = []
+        for row_i, ax_i in enumerate(best_axis):
+            if best_util[row_i] <= 0:                  # keep dominates -> no defer
+                dests.append(tuple(position))
+            else:
+                l = list(position); l[ax_i] += 1
+                dests.append(tuple(l))
+        df['preferred_deferral_lm'] = dests
+
+        return df[['preferred_deferral_lm', 'post_hoc_lm', 'pref_axis_utility']]
+
+
+    def cost_adjusted_frontier(self, position=None, lams=None, gain=1.0,
+                               keep_prob_col=None, cost_norm="max"):
+        """Sweep lam to trace the cost-accuracy Pareto frontier and integrate AUC.
+
+        For each lam: set cost-adjusted preferences, resolve deferrals, and record
+            acc   = mean metric of the resolved (post-routing) answers
+            spend = origin cost (paid by all) + full destination cost (deferred only)
+
+        Returns dict with per-lam spend/acc/defer_frac and the cost-AUC
+        (accuracy integrated over normalised spend).
+        """
+        if position is None:
+            position = self.origin
+        if lams is None:
+            lams = np.linspace(0, 5, 60)
+
+        df0 = self.registry[self.origin]
+        base_c = self.cost_registry[self.origin]
+        pos_tuple = tuple(position)
+
+        pts = []
+        for lam in lams:
+            self.set_cost_adjusted_pref(position, lam, gain=gain,
+                                        keep_prob_col=keep_prob_col,
+                                        cost_norm=cost_norm)
+            resolved = self.resolve_full_deferred(position, 'preferred_deferral_lm')
+            acc = resolved[self.metric_col].mean()
+
+            dests = df0['preferred_deferral_lm']
+            extra = np.array([0.0 if d == pos_tuple else self.cost_registry[d]
+                              for d in dests])
+            spend = base_c + extra.mean()
+            defer_frac = float((dests != pos_tuple).mean())
+            pts.append((spend, acc, float(lam), defer_frac))
+
+        pts.sort(key=lambda t: t[0])                   # order by spend
+        spend = [p[0] for p in pts]
+        acc = [p[1] for p in pts]
+        lam_out = [p[2] for p in pts]
+        defer = [p[3] for p in pts]
+
+        span = (spend[-1] - spend[0]) if spend[-1] > spend[0] else 1.0
+        spend_norm = [(s - spend[0]) / span for s in spend]
+
+        return {"spend": spend, "spend_norm": spend_norm, "acc": acc,
+                "lams": lam_out, "defer_frac": defer,
+                "cost_auc": np.trapezoid(acc, x=spend_norm)}
+    
     def full_threshold_sim_temp(self, def_col, from_position = None, pref_def_column='preferred_deferral', metric_override = None, axis_fn = None):
         #print(f"deferring by {col}")
         if metric_override:
