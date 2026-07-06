@@ -911,6 +911,85 @@ class MultiaxialCascade:
                 "lams": lam_out, "defer_frac": defer,
                 "cost_auc": np.trapezoid(acc, x=spend_norm)}
     
+    def single_axis_frontier(self, axis_index, def_col, position=None):
+        """(spend, acc) curve for a 1-axis cascade escalating only along `axis_index`.
+
+        Sweeps the deferral rank-threshold on `def_col` (e.g. an origin-confidence /
+        post_hoc score). Post-hoc cascade cost model: everyone pays origin; deferred
+        samples additionally pay the full single-destination cost.
+        """
+        if position is None:
+            position = self.origin
+        dest = position[:axis_index] + (position[axis_index] + 1,) + position[axis_index+1:]
+
+        df = self.registry[self.origin]
+        df_dest = self.registry[dest]
+        base_c = self.cost_registry[self.origin]
+        dest_c = self.cost_registry[dest]
+        metric = self.metric_col
+
+        thresh = np.linspace(-0.001, 1.0011, 200)
+        ranks = df[def_col].rank(method='first') / len(df[def_col])
+        spend, acc = [], []
+        for t in thresh:
+            defer_idx = ranks > (1 - t)
+            p = defer_idx.mean()
+            correct = df[metric][~defer_idx].sum() + df_dest[metric][defer_idx].sum()
+            acc.append(correct / len(df))
+            spend.append(base_c + p * dest_c)
+        return {"spend": spend, "acc": acc}
+
+
+    def compare_frontiers_audc(self, frontier_a, frontier_b, n_grid=200):
+        """Compare two (spend, acc) frontiers on a common normalised-spend grid.
+
+        frontier_a = reference (e.g. best single-axis cascade)
+        frontier_b = candidate (e.g. two-axis cost_adjusted_frontier)
+
+        Both dicts must have 'spend' and 'acc'. Curves are made monotone-in-spend
+        by upper-envelope (best accuracy achievable at <= that spend), interpolated
+        onto the OVERLAPPING spend range, then compared.
+
+        Returns:
+            audc_a, audc_b : area under each curve over the common grid
+            audc_delta     : audc_b - audc_a  (>0 => B dominates in area)
+            frac_b_wins    : fraction of grid where acc_b >= acc_a (1.0 => strict Pareto)
+            mean_gap, max_gap : acc_b - acc_a summary over the grid
+            s_lo, s_hi     : common spend range compared
+        """
+        def envelope(front):
+            s = np.asarray(front["spend"], float)
+            a = np.asarray(front["acc"], float)
+            order = np.argsort(s)
+            s, a = s[order], a[order]
+            a = np.maximum.accumulate(a)          # Pareto upper envelope
+            us, idx = np.unique(s, return_index=True)
+            return us, a[idx]
+
+        sa, aa = envelope(frontier_a)
+        sb, ab = envelope(frontier_b)
+
+        s_lo = max(sa.min(), sb.min())
+        s_hi = min(sa.max(), sb.max())
+        if s_hi <= s_lo:
+            raise ValueError(f"No overlapping spend range (a:[{sa.min()},{sa.max()}] "
+                             f"b:[{sb.min()},{sb.max()}]).")
+
+        grid = np.linspace(s_lo, s_hi, n_grid)
+        ga = np.interp(grid, sa, aa)
+        gb = np.interp(grid, sb, ab)
+
+        grid_norm = (grid - s_lo) / (s_hi - s_lo)
+        audc_a = np.trapezoid(ga, x=grid_norm)
+        audc_b = np.trapezoid(gb, x=grid_norm)
+        gap = gb - ga
+
+        return {"audc_a": audc_a, "audc_b": audc_b, "audc_delta": audc_b - audc_a,
+                "frac_b_wins": float((gap >= 0).mean()),
+                "mean_gap": float(gap.mean()), "max_gap": float(gap.max()),
+                "min_gap": float(gap.min()), "s_lo": s_lo, "s_hi": s_hi,
+                "grid": grid, "acc_a": ga, "acc_b": gb}
+
     def full_threshold_sim_temp(self, def_col, from_position = None, pref_def_column='preferred_deferral', metric_override = None, axis_fn = None):
         #print(f"deferring by {col}")
         if metric_override:
