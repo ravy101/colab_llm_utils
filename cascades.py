@@ -756,7 +756,8 @@ class MultiaxialCascade:
             best_axis = oof_preds.argmax(axis=1)
             def_destinations = []
             for idx in best_axis:
-                l = list(position); l[idx] = l[idx] + 1
+                l = list(position)
+                l[idx] = l[idx] + 1
                 def_destinations.append(tuple(l))
             df['preferred_deferral_lm'] = def_destinations
         else:
@@ -769,7 +770,8 @@ class MultiaxialCascade:
                 df['post_hoc_lm'] = df[simple_def_col]
             def_destinations = []
             for idx in oof_preds[:, offset:].argmax(axis=1):
-                l = list(position); l[idx] = l[idx] + 1
+                l = list(position) 
+                l[idx] = l[idx] + 1
                 def_destinations.append(tuple(l))
             df['preferred_deferral_lm'] = def_destinations
 
