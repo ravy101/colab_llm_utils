@@ -550,8 +550,13 @@ class MultiaxialCascade:
         df = self.registry[position]
 
         # Build target frame: column 0 = stay, columns 1..N = escalate along each axis
-        target_dict = {0: df[self.metric_col].values}
-        deferral_options = {0: tuple(position)}
+        
+        if allow_keep:
+            deferral_options = {0: tuple(position)}
+            target_dict = {0: df[self.metric_col].values}
+        else:
+            deferral_options = {}
+            target_dict = {}
 
         for i, _ in enumerate(self.axes_names):
             pos = position[:i] + (position[i] + 1,) + position[i+1:]
@@ -570,12 +575,9 @@ class MultiaxialCascade:
         oracle_idx = target_df.apply(tie_breaker, axis=1).astype(int)
 
         df['oracle_pref_idx'] = oracle_idx.values
-        df['oracle_pref_axis'] = oracle_idx.map(
-            lambda k: 'keep' if k == 0 else self.axes_names[k - 1]
-        ).values
         df['oracle_preferred_deferral'] = oracle_idx.map(deferral_options).values
 
-        return df[['oracle_pref_idx', 'oracle_pref_axis', 'oracle_preferred_deferral']]
+        return df[['oracle_pref_idx', 'oracle_preferred_deferral']]
 
     def fit_post_hoc_lm_at(self,
         position,
