@@ -660,7 +660,7 @@ class MultiaxialCascade:
                     label_cols.append(self.registry[pos][self.metric_col].values)
                 targets = np.stack(label_cols, axis=1)          # (n, n_axes) float
                 n_outputs = len(self.axes_names) + 1
-            else:
+
             # per-axis pos_weight = n_neg / n_pos (clamped to avoid inf)
             pos_weight = None
             if use_pos_weight:
