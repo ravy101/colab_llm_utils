@@ -579,6 +579,147 @@ class MultiaxialCascade:
 
         return df[['oracle_pref_idx', 'oracle_preferred_deferral']]
 
+
+    def fit_correctness_lm_at(self,
+        position=None,
+        input_text_col="prompts",
+        output_text_col="responses",
+        model_name="microsoft/deberta-v3-small",
+        num_epochs=3,
+        batch_size=8,
+        learning_rate=2e-5,
+        max_length=512,
+        use_pos_weight=True,
+        threshold=0.5,
+        score_col="post_hoc_conf",
+        device=None,
+        verbose=True
+    ):
+        """
+        Fit a DeBERTa head to predict *the correctness of the model at `position`*,
+        independent of any downstream axis. This is a plain post-hoc confidence /
+        deferral model: "given prompt+response, did THIS tier get it right?"
+
+        Unlike fit_post_hoc_lm_at, there are no escalation/recovery targets and no
+        neighbour positions are required — only self.registry[position][metric_col].
+
+        Binary target per row: y = metric_col  (assumed 0/1; anything > 0 is treated
+        as correct so it also works with a raw f1/score column).
+
+        Trained as a 2-logit softmax head (reusing the existing multiclass path) so
+        train_deberta_model / predict_deberta_proba work unchanged.
+
+        Writes to self.registry[position]:
+            score_col : P(incorrect) in [0,1]  -> HIGH = defer (matches the
+                        polarity of post_hoc_lm, where fit_post_hoc_lm_at stores
+                        1 - P(keep-correct)).
+
+        Returns the (n, 2) OOF probability frame [P(correct), P(incorrect)].
+        """
+        if device is None:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        if position is None:
+            position = self.origin
+
+        df = self.registry[position]
+
+        if 'fold' not in df.columns:
+            raise RuntimeError("No 'fold' column found. Call compute_cv_splits() first.")
+
+        for c in [input_text_col, output_text_col]:
+            if c not in list(df.columns):
+                raise ValueError(f"Column {c} not found in dataframe at {position}.")
+
+        combined_texts = (df[input_text_col].astype(str) + " [SEP] "
+                          + df[output_text_col].astype(str)).values
+
+        # ---- binary correctness target (robust to raw-score metric columns) ----
+        y_correct = (df[self.metric_col].values > 0).astype(np.int64)
+        targets = y_correct                         # class 1 = correct, 0 = incorrect
+        n_outputs = 2
+
+        # optional class weighting (mirrors the multilabel pos_weight logic but for
+        # the 2-class softmax head: weight = n_total / (n_classes * n_class))
+        class_weight = None
+        if use_pos_weight:
+            counts = np.bincount(targets, minlength=n_outputs).astype(float)
+            counts = np.maximum(counts, 1.0)
+            class_weight = targets.shape[0] / (n_outputs * counts)
+
+        oof_preds = np.zeros((len(df), n_outputs))
+
+        if verbose:
+            acc_rate = targets.mean()
+            print(f"[fit_correctness_lm_at] position={position} | device={device}")
+            print(f"  correctness rate: {acc_rate:.4f}  "
+                  f"(n_correct={int(targets.sum())}/{len(targets)})")
+            if class_weight is not None:
+                print(f"  class_weight [incorrect, correct]: {np.round(class_weight, 3)}")
+
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+        except Exception as e:
+            print(f"Error loading tokenizer: {e}")
+            raise
+
+        for fold_idx in range(self.kf.get_n_splits()):
+            if verbose:
+                print(f"  fold {fold_idx + 1}/{self.kf.get_n_splits()}")
+
+            train_mask = df['fold'] != fold_idx
+            val_mask = df['fold'] == fold_idx
+
+            X_train_texts = combined_texts[train_mask.values]
+            X_val_texts = combined_texts[val_mask.values]
+            y_train = targets[train_mask.values]
+            y_val = targets[val_mask.values]
+
+            train_dataset = TextClassificationDataset(
+                X_train_texts, y_train, tokenizer, max_length=max_length, multilabel=False
+            )
+            val_dataset = TextClassificationDataset(
+                X_val_texts, y_val, tokenizer, max_length=max_length, multilabel=False
+            )
+            train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+            val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+
+            model = DeBERTaClassificationHead(model_name, n_outputs, dropout_rate=0.1)
+
+            # inject class weighting into the criterion without touching
+            # train_deberta_model: temporarily wrap CrossEntropyLoss
+            if class_weight is not None:
+                cw = torch.tensor(class_weight, dtype=torch.float, device=device)
+                _orig_ce = nn.CrossEntropyLoss
+                nn.CrossEntropyLoss = lambda *a, **k: _orig_ce(weight=cw)
+            try:
+                model = train_deberta_model(
+                    model, train_loader, val_loader,
+                    num_epochs=num_epochs,
+                    learning_rate=learning_rate,
+                    device=device,
+                    multilabel=False,
+                    threshold=threshold
+                )
+            finally:
+                if class_weight is not None:
+                    nn.CrossEntropyLoss = _orig_ce
+
+            probs = predict_deberta_proba(model, val_loader, n_outputs,
+                                          device=device, multilabel=False)
+            oof_preds[val_mask.values] = probs
+
+            del model, train_dataset, val_dataset, train_loader, val_loader
+            torch.cuda.empty_cache()
+
+        # class index 1 = correct -> P(incorrect) = column 0; HIGH = defer
+        df[score_col] = oof_preds[:, 0]
+
+        if verbose:
+            self._sanity_check_correctness_lm(position, score_col)
+
+        return pd.DataFrame(oof_preds, index=df.index,
+                            columns=["p_correct", "p_incorrect"])
+    
     def fit_post_hoc_lm_at(self,
         position,
         input_text_col,
@@ -641,6 +782,7 @@ class MultiaxialCascade:
             axis_positions.append(pos)
 
         # ============================ TARGET BUILD ============================
+        axis_offset = 0
         if multilabel:
             if not multilabel_keep:
                 if recovery_fn is None:
@@ -654,6 +796,7 @@ class MultiaxialCascade:
                 targets = np.stack(label_cols, axis=1)          # (n, n_axes) float
                 n_outputs = len(self.axes_names)
             else:
+                axis_offset = 1
                 base_score = df[self.metric_col].values
                 label_cols = [base_score]
                 for pos in axis_positions:
@@ -686,7 +829,7 @@ class MultiaxialCascade:
             print(f"mode: {'multilabel' if multilabel else 'multiclass'}")
             print(f"n_outputs: {n_outputs} | device: {device}")
             if multilabel:
-                rates = targets.mean(axis=0)
+                rates = targets[:, axis_offset:].mean(axis=0)
                 for ax, r in zip(self.axes_names, rates):
                     print(f"  recovery rate [{ax}]: {r:.4f}")
                 if pos_weight is not None:
