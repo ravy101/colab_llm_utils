@@ -757,12 +757,17 @@ class MultiaxialCascade:
         # ============================ WRITE-BACK ============================
         if multilabel:
             # per-axis recovery probabilities
+            if multilabel_keep:
+                df['post_hoc_lm'] = oof_preds[:, 0]
+                offset_ax = 1
+            else:
+                offset_ax = 0
             for i, ax in enumerate(self.axes_names):
-                df[f'post_hoc_lm_{ax}'] = oof_preds[:, i]
+                df[f'post_hoc_lm_{ax}'] = oof_preds[:, i + offset_ax]
             # defer-or-not score = best available axis recovers it
-            df['post_hoc_lm'] = oof_preds.max(axis=1)
+            #df['post_hoc_lm'] = oof_preds.max(axis=1)
             # preferred axis = most-likely-to-recover axis
-            best_axis = oof_preds.argmax(axis=1)
+            best_axis = oof_preds[:, offset_ax:].argmax(axis=1)
             def_destinations = []
             for idx in best_axis:
                 l = list(position)
