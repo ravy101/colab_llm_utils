@@ -589,6 +589,7 @@ class MultiaxialCascade:
         learning_rate=2e-5,
         max_length=512,
         multilabel=False,
+        multilabel_keep=False,
         recovery_fn=None,
         use_pos_weight=True,
         threshold=0.5,
@@ -641,17 +642,25 @@ class MultiaxialCascade:
 
         # ============================ TARGET BUILD ============================
         if multilabel:
-            if recovery_fn is None:
-                recovery_fn = lambda base, axis: (axis > base).astype(np.float32)
+            if not multilabel_keep:
+                if recovery_fn is None:
+                    recovery_fn = lambda base, axis: (axis > base).astype(np.float32)
 
-            base_score = df[self.metric_col].values
-            label_cols = []
-            for pos in axis_positions:
-                axis_score = self.registry[pos][self.metric_col].values
-                label_cols.append(recovery_fn(base_score, axis_score).astype(np.float32))
-            targets = np.stack(label_cols, axis=1)          # (n, n_axes) float
-            n_outputs = len(self.axes_names)
-
+                base_score = df[self.metric_col].values
+                label_cols = []
+                for pos in axis_positions:
+                    axis_score = self.registry[pos][self.metric_col].values
+                    label_cols.append(recovery_fn(base_score, axis_score).astype(np.float32))
+                targets = np.stack(label_cols, axis=1)          # (n, n_axes) float
+                n_outputs = len(self.axes_names)
+            else:
+                base_score = df[self.metric_col].values
+                label_cols = [base_score]
+                for pos in axis_positions:
+                    label_cols.append(self.registry[pos][self.metric_col].values)
+                targets = np.stack(label_cols, axis=1)          # (n, n_axes) float
+                n_outputs = len(self.axes_names) + 1
+            else:
             # per-axis pos_weight = n_neg / n_pos (clamped to avoid inf)
             pos_weight = None
             if use_pos_weight:
