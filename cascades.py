@@ -1151,7 +1151,9 @@ class MultiaxialCascade:
                 "min_gap": float(gap.min()), "s_lo": s_lo, "s_hi": s_hi,
                 "grid": grid, "acc_a": ga, "acc_b": gb}
 
-    def full_threshold_sim_temp(self, def_col, from_position = None, pref_def_column='preferred_deferral', metric_override = None, axis_fn = None):
+    def full_threshold_sim_temp(self, def_col, from_position=None,
+                                pref_def_column='preferred_deferral',
+                                metric_override=None, axis_fn=None):
         #print(f"deferring by {col}")
         if metric_override:
             metric = metric_override
@@ -1159,11 +1161,21 @@ class MultiaxialCascade:
             metric = self.metric_col
 
         if from_position is None:
-          from_position = self.origin
-          
+            from_position = self.origin
+
         df = self.registry[self.origin]
         df_large = self.resolve_full_deferred(from_position, pref_def_column=pref_def_column)
-        thresh = np.linspace(0- .001, 1 +0.0011,200)
+
+        # Per-row full destination cost for each row's preferred deferral target.
+        # Post-hoc cost model: everyone pays the origin cost; a deferred row
+        # additionally pays the FULL cost of wherever it resolves to.
+        base_c = self.cost_registry[from_position]
+        row_dest_cost = np.array(
+            [self.cost_registry[d] for d in df[pref_def_column].values],
+            dtype=float
+        )
+
+        thresh = np.linspace(0 - .001, 1 + 0.0011, 200)
         accs = []
         n_deferred = []
         p_deferred = []
@@ -1171,18 +1183,24 @@ class MultiaxialCascade:
         deferred_acc = []
         deferred_correct = []
         coverage = []
-        ranks = df[def_col].rank(method='first')/len(df[def_col])
+        spend = []
+        ranks = df[def_col].rank(method='first') / len(df[def_col])
         for t in thresh:
-            defer_idx = ranks > (1-t)
+            defer_idx = ranks > (1 - t)
             correct_current = df[metric][~defer_idx].sum()
             correct_large = df_large[metric][defer_idx].sum()
             accept_acc.append(df[metric][~defer_idx].mean())
             deferred_acc.append(df_large[metric][defer_idx].mean())
             deferred_correct.append(df_large[metric][defer_idx].sum())
             n_deferred.append(defer_idx.sum())
-            p_deferred.append((defer_idx.sum()/len(df)))
+            p_deferred.append((defer_idx.sum() / len(df)))
             coverage.append((~defer_idx).mean())
-            accs.append((correct_current + correct_large)/len(df))
+            accs.append((correct_current + correct_large) / len(df))
+
+            # total spend: origin paid by all + full dest cost for deferred rows,
+            # summed per-row (destinations differ across axes) and averaged.
+            total_spend = base_c + (row_dest_cost * defer_idx.values).sum() / len(df)
+            spend.append(total_spend)
 
             # switch fn = return 0??
 
@@ -1191,18 +1209,91 @@ class MultiaxialCascade:
                     p_del_20 = p_deferred.copy()
                     accs_20 = accs.copy()
                     p_del_20, accs_20 = misc.cap_interp_curve(p_del_20, accs_20, .2)
-                    auc_20 = np.trapezoid(accs_20, x= p_del_20)
+                    auc_20 = np.trapezoid(accs_20, x=p_del_20)
                 if p_deferred[-2] < .4 and p_deferred[-1] >= .4:
                     p_del_40 = p_deferred.copy()
                     accs_40 = accs.copy()
                     p_del_40, accs_40 = misc.cap_interp_curve(p_del_40, accs_40, .4)
-                    auc_40 = np.trapezoid(accs_40, x= p_del_40)
+                    auc_40 = np.trapezoid(accs_40, x=p_del_40)
 
-        return {"p_deferred": p_deferred, "n_deferred":n_deferred, "deferred_correct": deferred_correct, "accepted_acc": accept_acc, "deferred_acc":deferred_acc, "accs": accs, 
-                "auc": np.trapezoid(accs, x= p_deferred), "auc_20": auc_20, "auc_40": auc_40, "accs_20": accs_20, "accs_40": accs_40, 
-                "aurc": np.trapezoid(accept_acc, x = p_deferred), "p_del_20": p_del_20, "p_del_40": p_del_40}
+        # normalised spend for a scale-free cost-AUC (matches cost_adjusted_frontier)
+        spend_arr = np.asarray(spend, dtype=float)
+        span = (spend_arr.max() - spend_arr.min()) if spend_arr.max() > spend_arr.min() else 1.0
+        spend_norm = ((spend_arr - spend_arr.min()) / span).tolist()
 
+        # accuracy integrated over spend; sort by spend since it is monotone in t
+        # but guard against float wobble.
+        order = np.argsort(spend_arr)
+        cost_auc = np.trapezoid(np.asarray(accs)[order], x=spend_arr[order])
+        cost_auc_norm = np.trapezoid(np.asarray(accs)[order],
+                                     x=np.asarray(spend_norm)[order])
 
+        return {"p_deferred": p_deferred, "n_deferred": n_deferred,
+                "deferred_correct": deferred_correct, "accepted_acc": accept_acc,
+                "deferred_acc": deferred_acc, "accs": accs,
+                "auc": np.trapezoid(accs, x=p_deferred), "auc_20": auc_20, "auc_40": auc_40,
+                "accs_20": accs_20, "accs_40": accs_40,
+                "aurc": np.trapezoid(accept_acc, x=p_deferred),
+                "p_del_20": p_del_20, "p_del_40": p_del_40,
+                "spend": spend, "spend_norm": spend_norm,
+                "cost_auc": cost_auc, "cost_auc_norm": cost_auc_norm}
+
+    def _sanity_check_correctness_lm(self, position, score_col):
+        """
+        Diagnostics for a post-hoc correctness/confidence head.
+        Confirms the OOF scores actually separate correct from incorrect
+        (rather than collapsing to a constant / the majority class).
+        """
+        from sklearn.metrics import roc_auc_score
+        from scipy import stats
+
+        df = self.registry[position]
+        y = (df[self.metric_col].values > 0).astype(int)   # 1 = correct
+        s = df[score_col].values                           # HIGH = predicted incorrect
+
+        print("---- correctness-LM sanity check ----")
+        print(f"  score '{score_col}': "
+              f"min={s.min():.3f} max={s.max():.3f} mean={s.mean():.3f} std={s.std():.3f}")
+
+        # collapse detector: near-zero spread means the head learned nothing
+        if s.std() < 1e-3:
+            print("  !! WARNING: score has ~zero variance -> head collapsed "
+                  "(predicting a constant). Check class balance / LR / epochs.")
+            return
+
+        # AUROC of P(incorrect) as a detector of incorrect samples.
+        # target for the detector is (1 - y) = 'is incorrect'
+        try:
+            auroc = roc_auc_score(1 - y, s)
+            print(f"  detector AUROC (P(incorrect) vs is-incorrect): {auroc:.4f}  "
+                  f"(0.5 = useless, want > 0.5)")
+        except ValueError:
+            print("  AUROC undefined (only one class present).")
+
+        # rank correlation with correctness; should be negative
+        tau = stats.kendalltau(s, y).statistic
+        print(f"  Kendall tau (score vs correct): {tau:.4f}  (want negative)")
+
+        # mean score in each group: incorrect should score HIGHER than correct
+        print(f"  mean score | correct   samples: {s[y == 1].mean():.4f}")
+        print(f"  mean score | incorrect samples: {s[y == 0].mean():.4f}")
+
+        # deferral value: feed straight into the existing sweep machinery.
+        # (needs a preferred_deferral_lm column pointing one step off origin;
+        #  we build a trivial one so full_threshold_sim_temp can resolve.)
+        if len(self.axes_names) >= 1 and 'preferred_deferral_lm' not in df.columns:
+            dflt = list(position); dflt = tuple(dflt)
+            # default everyone to first-axis escalation for the AUC probe
+            l = list(position); l[0] += 1
+            df['preferred_deferral_lm'] = [tuple(l)] * len(df)
+        try:
+            res = self.full_threshold_sim_temp(score_col,
+                                               pref_def_column='preferred_deferral_lm')
+            print(f"  deferral AUC (full)={res['auc']:.4f} | "
+                  f"AUC@20={res['auc_20']:.4f} | AUC@40={res['auc_40']:.4f}")
+        except Exception as e:
+            print(f"  (skipped deferral AUC probe: {e})")
+        print("--------------------------------------")
 
     def run_simulation(self, router_fn):
         """
