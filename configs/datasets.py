@@ -514,7 +514,7 @@ def doc_to_text_mmlu(item):
 Question: {item['question']}
 Options: {choices_str}\n
 
-IMPORTANT INSTRUCTION - Answer ONLY with the correct option letter after the 'Best answer option:' instruction.\n"
+IMPORTANT INSTRUCTION - Answer ONLY with the correct option letter.\n"
 
 Best answer option: """
     
