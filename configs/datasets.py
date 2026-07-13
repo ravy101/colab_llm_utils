@@ -512,8 +512,11 @@ def doc_to_text_mmlu(item):
     
     return f"""Answer the following multiple choice question with only the letter corresponding to the correct answer.
 Question: {item['question']}
-Choices: {choices_str}\n
-Answer: """
+Options: {choices_str}\n
+
+IMPORTANT INSTRUCTION - Answer ONLY with the correct option letter after the 'Best answer option:' instruction.\n"
+
+Best answer option: """
     
 
 def doc_to_choices_mmlu(item):
