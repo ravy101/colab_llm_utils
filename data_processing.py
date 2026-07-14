@@ -8,38 +8,50 @@ from . import text
 
 def clean_mcq_strict(output_text, options_list):
     """
-    Strictly parse MCQ outputs to one of the allowed option tokens.
-    Returns "none" if no valid option token is found.
+    Parse LLM MCQ outputs into one of the allowed option tokens.
+
+    Preference:
+      1. Explicit answer statements ("Answer:", "Final answer:", etc.)
+      2. Last standalone option token in the text.
+      3. "none" if nothing valid is found.
     """
     if not output_text or not options_list:
         return "none"
 
-    raw = str(output_text)
-    txt = raw.strip()
+    txt = str(output_text).strip()
 
-    escaped_options = [re.escape(str(opt)) for opt in options_list]
-    options_pattern = "|".join(escaped_options)
+    # lookup preserving original option capitalisation
+    lookup = {str(opt).lower(): opt for opt in options_list}
 
-    # Punctuation/end boundary after the option (brace-safe: use \x7d for '}' and \x7b for '{')
-    boundary_lookahead = r"(?=\s|[\.!\)\],:;]|$|[\x7d])"  # \x7d = '}'
+    escaped = [re.escape(str(opt)) for opt in options_list]
+    options_pattern = "|".join(escaped)
 
-    # 1) Prefer explicit "Answer: <option>" anywhere in the text (case-insensitive)
-    answer_prefix_pattern = (
-        rf"(?i)(?:^|[\s\n])answer\s*:\s*({options_pattern})" + boundary_lookahead
+    # standalone token boundary
+    # allows: A, A., "A", (A), [A], A:, etc.
+    token = rf'(?<![A-Za-z0-9])({options_pattern})(?![A-Za-z0-9])'
+
+    # Explicit answer forms
+    answer_pattern = (
+        rf'(?i)'
+        rf'(?:'
+        rf'final\s+answer|'
+        rf'correct\s+answer|'
+        rf'answer'
+        rf')'
+        rf'\s*(?:is|should\s+be|=|:|-)?\s*["\']?'
+        rf'({options_pattern})'
+        rf'["\']?'
+        rf'(?![A-Za-z0-9])'
     )
-    m = re.search(answer_prefix_pattern, txt)
-    if m:
-        matched = m.group(1).strip().lower()
-        for opt in options_list:
-            if str(opt).lower() == matched:
-                return opt
 
-    # 2) Otherwise accept a bounded standalone option token anywhere
-    for opt in options_list:
-        opt_s = str(opt)
-        opt_pattern = rf"(?i)(?:^|[\s\n]){re.escape(opt_s)}" + boundary_lookahead
-        if re.search(opt_pattern, txt):
-            return opt
+    matches = list(re.finditer(answer_pattern, txt))
+    if matches:
+        return lookup[matches[-1].group(1).lower()]
+
+    # Otherwise return the LAST standalone option token
+    matches = list(re.finditer(token, txt, flags=re.IGNORECASE))
+    if matches:
+        return lookup[matches[-1].group(1).lower()]
 
     return "none"
 
