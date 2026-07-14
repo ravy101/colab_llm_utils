@@ -92,14 +92,17 @@ def process_dataframe(df, dataset_config, metric_dict, self_conf = False, p_true
     p_true_series = [m['p_true'] for m in df['meta']]
     df['p_true'] = p_true_series
 
+  graded_responses = []
   results = []
   results_bl = []
   results_em = []
   results_f1 = []
   if dataset_config['task_type'] == 'translation':
     for out, ans, question in zip(df['responses'], df['ans'], df['prompts']):
+      graded_responses.append(out)
       results.append(metric_dict['meteor'].compute(predictions=out, references=[ans]))
       results_bl.append(metric_dict['bleurt'].compute(predictions=out, references=[ans]))
+    df['scored_responses'] = graded_responses
     df['meteor'] = [r['meteor'] for r in results]
     df['bleurt'] = [r['scores'][0] for r in results_bl]
   elif dataset_config['task_type'] == 'qa':
@@ -117,11 +120,11 @@ def process_dataframe(df, dataset_config, metric_dict, self_conf = False, p_true
       else:
         targets = ans
       response = out
-
+      graded_responses.append(response)
       results.append(scorers.best_rouge_l(response, targets))
       results_em.append(scorers.best_em(response, targets))
       results_f1.append(scorers.best_f1(response, targets))
-
+    df['scored_responses'] = graded_responses
     df['rouge'] = results
     df['em'] = results_em
     df['f1'] = results_f1
@@ -131,17 +134,19 @@ def process_dataframe(df, dataset_config, metric_dict, self_conf = False, p_true
       targets = ans
       response = [clean_mcq_strict(out[0], dataset_config["options"])]
       #print(response)
-
+      graded_responses.append(response)
       results.append(scorers.best_rouge_l(response, targets))
       results_em.append(scorers.best_em(response, targets))
       results_f1.append(scorers.best_f1(response, targets))
-
+    df['scored_responses'] = graded_responses
     df['rouge'] = results
     df['em'] = results_em
     df['f1'] = results_f1
   elif dataset_config['task_type'] == 'summarization':
     for out, ans in zip(df['responses'], df['ans']):
+      graded_responses.append(out)
       results.append(scorers.best_rouge_l(out, ans))
+    df['scored_responses'] = graded_responses
     df['rouge'] = results
 
   gc.collect()
