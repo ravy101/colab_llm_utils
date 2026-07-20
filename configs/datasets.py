@@ -718,3 +718,23 @@ mixeval_mc = {
     "filter_fn": None,
     #"filter_fn": lambda x: x.get("problem_type") == "multiple-choice",
 }
+
+def doc_to_text_bbh(item):
+    return f"Read the following problem and provide a short, exact answer.\n\n{item['input']}\n\nAnswer:"
+
+def doc_to_answer_bbh(item):
+    return str(item['target']).strip()
+
+bbh_all = {
+    "clean_name": "BBH-All",
+    "dataset_name": "all_special",  # Custom trigger for the generation script
+    "dataset_location": "lukaemon/bbh",
+    "options": None, 
+    "subset": "test", 
+    "task_type": "qa", 
+    "dict_ans": False,
+    "shuffle": True,        # We want to shuffle the concatenated dataset
+    "doc_to_text": doc_to_text_bbh,
+    "doc_to_ans": doc_to_answer_bbh,
+    "filter_fn": None
+}
