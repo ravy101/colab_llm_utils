@@ -705,7 +705,7 @@ def doc_to_answer_mixeval(item):
 
 mixeval_mc = {
     "clean_name": "MixEval-MC",
-    "dataset_name": "default", 
+    "dataset_name": "MixEval", 
     "dataset_location": "MixEval/MixEval",
     "options": ["A", "B", "C", "D", "E"], 
     "subset": "train",
