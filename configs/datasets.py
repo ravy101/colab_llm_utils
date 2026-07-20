@@ -658,3 +658,62 @@ gooaq = {"clean_name": "gooaq",
         "shuffle": False,
         "doc_to_text": doc_to_text_gooaq,
         "doc_to_ans": doc_to_answer_gooaq}
+
+
+def doc_to_text_mixeval(item):
+    options = item.get('options', [])
+    
+    formatted_choices = []
+    for i, choice in enumerate(options):
+        # Map indices to A, B, C, D, etc.
+        letter = string.ascii_uppercase[i]
+        formatted_choices.append(f"{letter}. {choice}")
+    
+    choices_str = "\n".join(formatted_choices)
+    
+    # MixEval sometimes uses both 'context' and 'prompt'
+    context = item.get('context', '')
+    prompt = item.get('prompt', '')
+    
+    if context and str(context).lower() != 'none':
+        question_text = f"Context: {context}\nQuestion: {prompt}"
+    else:
+        question_text = f"Question: {prompt}"
+    
+    return f"""Answer the following multiple choice question with only the letter corresponding to the correct answer.
+{question_text}
+Options: \n{choices_str}\n
+
+IMPORTANT INSTRUCTION - Answer ONLY with the correct option letter.
+
+Answer: """
+
+def doc_to_choices_mixeval(item):
+    """Return the list of choice strings for a MixEval item."""
+    options = item.get("options", [])
+    if not options:
+        raise ValueError(f"MixEval item missing options: keys={list(item.keys())}")
+    return list(options)
+
+def doc_to_answer_mixeval(item):
+    """Return the target answer for a MixEval item."""
+    target = item.get('target', [])
+    # MixEval targets are usually stored in a list, e.g., ["A"] 
+    if isinstance(target, list) and len(target) > 0:
+        return str(target[0]).strip()
+    return str(target).strip()
+
+mixeval_mc = {
+    "clean_name": "MixEval-MC",
+    "dataset_name": "default", 
+    "dataset_location": "MixEval/MixEval",
+    "options": ["A", "B", "C", "D", "E"], 
+    "subset": "train",
+    "task_type": "multiple_choice",
+    "dict_ans": False,
+    "shuffle": False,
+    "doc_to_text": doc_to_text_mixeval,
+    "doc_to_ans": doc_to_answer_mixeval,
+    "doc_to_choices": doc_to_choices_mixeval,
+    "filter_fn": lambda x: x.get("problem_type") == "multiple-choice",
+}
