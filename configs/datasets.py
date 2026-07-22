@@ -683,7 +683,7 @@ def doc_to_text_mixeval(item):
     
     text =  f"""Answer the following question with only the correct entity or option letter if multiple-choice.
 {question_text}\n"""
-    if len(options) > 0:
+    if len(options) > 1:
         text =text + f"Options: \n{choices_str}\n"
     text = text + """
 
