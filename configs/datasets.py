@@ -660,6 +660,7 @@ gooaq = {"clean_name": "gooaq",
         "doc_to_ans": doc_to_answer_gooaq}
 
 
+
 def doc_to_text_mixeval(item):
     options = item.get('options', [])
     
@@ -680,13 +681,16 @@ def doc_to_text_mixeval(item):
     else:
         question_text = f"Question: {prompt}"
     
-    return f"""Answer the following multiple choice question with only the letter corresponding to the correct answer.
-{question_text}
-Options: \n{choices_str}\n
+    text =  f"""Answer the following question with only the correct entity or option letter if multiple-choice.
+{question_text}\n"""
+    if len(options) > 0:
+        text =text + f"Options: \n{choices_str}\n"
+    text = text + """
 
-IMPORTANT INSTRUCTION - Answer ONLY with the correct option letter.
+IMPORTANT INSTRUCTIONS - Answer ONLY with the correct entity or option letter. Do not reference any context, sources or reasoning.
 
 Answer: """
+    return text
 
 def doc_to_choices_mixeval(item):
     """Return the list of choice strings for a MixEval item."""
@@ -698,10 +702,12 @@ def doc_to_choices_mixeval(item):
 def doc_to_answer_mixeval(item):
     """Return the target answer for a MixEval item."""
     target = item.get('target', [])
-    # MixEval targets are usually stored in a list, e.g., ["A"] 
-    if isinstance(target, list) and len(target) > 0:
-        return str(target[0]).strip()
-    return str(target).strip()
+    options = item.get('options', None)
+    if options:
+       ans = [string.ascii_uppercase[int(target[0])]]
+    else:
+       ans = target
+    return ans
 
 mixeval_mc = {
     "clean_name": "MixEval-MC",
@@ -737,4 +743,21 @@ bbh_all = {
     "doc_to_text": doc_to_text_bbh,
     "doc_to_ans": doc_to_answer_bbh,
     "filter_fn": None
+}
+
+
+mixeval_ff = {
+    "clean_name": "MixEval-FF",
+    "dataset_name": "MixEval", 
+    "dataset_location": "MixEval/MixEval",
+    #"options": ["A", "B", "C", "D", "E"], 
+    "subset": "free_form",
+    "task_type": "qa",
+    "dict_ans": True,
+    "shuffle": False,
+    "doc_to_text": doc_to_text_mixeval,
+    "doc_to_ans": doc_to_answer_mixeval,
+    "doc_to_choices": doc_to_choices_mixeval,
+    "filter_fn": None,
+    #"filter_fn": lambda x: x.get("problem_type") == "multiple-choice",
 }
