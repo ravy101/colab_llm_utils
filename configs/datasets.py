@@ -681,13 +681,13 @@ def doc_to_text_mixeval(item):
     else:
         question_text = f"Question: {prompt}"
     
-    text =  f"""Answer the following question with only the correct entity or option letter if multiple-choice.
+    text =  f"""Answer the following question with only the correct entity. If options are given provide the correct response letter.
 {question_text}\n"""
     if len(options) > 1:
         text =text + f"Options: \n{choices_str}\n"
     text = text + """
 
-IMPORTANT INSTRUCTIONS - Answer ONLY with the correct entity or option letter. Do not reference any context, sources or reasoning.
+IMPORTANT INSTRUCTIONS - Answer ONLY with the correct entity or option letter (if options are listed). Do not reference any context, sources or reasoning.
 
 Answer: """
     return text
