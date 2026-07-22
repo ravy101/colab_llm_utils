@@ -687,7 +687,7 @@ def doc_to_text_mixeval(item):
         text =text + f"Options: \n{choices_str}\n"
     text = text + """
 
-IMPORTANT INSTRUCTIONS - Answer ONLY with the correct entity or option letter (if options are listed). Do not reference any context, sources or reasoning.
+IMPORTANT INSTRUCTIONS - Answer ONLY with the correct entity or option letter (if options are explicitly listed). Do not reference any context, sources or reasoning.
 
 Answer: """
     return text
