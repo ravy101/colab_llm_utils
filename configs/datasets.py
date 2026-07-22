@@ -703,7 +703,7 @@ def doc_to_answer_mixeval(item):
     """Return the target answer for a MixEval item."""
     target = item.get('target', [])
     options = item.get('options', [])
-    if len(options) > 0 :
+    if len(options) > 1:
        ans = [string.ascii_uppercase[int(target[0])]]
     else:
        ans = target
