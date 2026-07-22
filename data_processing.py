@@ -122,6 +122,8 @@ def process_dataframe(df, dataset_config, metric_dict, self_conf = False, p_true
       if dataset_config['dict_ans']:
         if dataset_config['clean_name'] == 'TruthfulQA' or dataset_config['clean_name'] == 'HotpotQA':
           targets = ans
+        elif isinstance(ans, list):
+           targets = ans
         else:
           targets = ans['normalized_aliases']
       elif dataset_config['clean_name'] == 'StrategyQA':
