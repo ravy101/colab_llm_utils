@@ -681,13 +681,13 @@ def doc_to_text_mixeval(item):
     else:
         question_text = f"Question: {prompt}"
     
-    text =  f"""Answer the following question with only the correct answer. If multiple-choice options are given, then provide the correct response letter.
+    text =  f"""Answer the following question with only the correct answer.
 {question_text}\n"""
     if len(options) > 1:
         text =text + f"Options: \n{choices_str}\n"
     text = text + """
 
-IMPORTANT INSTRUCTIONS - Output ONLY the correct answer. Do not reference any context, sources or reasoning.
+IMPORTANT INSTRUCTIONS - Output ONLY the correct answer. DO NOT reference any context, sources or reasoning.
 
 Answer: """
     return text
