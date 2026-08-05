@@ -574,6 +574,8 @@ class MultiaxialCascade:
                     axis_score = self.registry[pos][self.metric_col].values
                     label_cols.append(recovery_fn(base_score, axis_score).astype(np.float32))
                 targets = np.stack(label_cols, axis=1)
+                # after targets are built (multilabel, destination-correctness semantics)
+                informative = ~np.all(targets == targets[:, [0]], axis=1)
                 n_outputs = len(self.axes_names)
                 axis_offset = 0
             else:
@@ -586,8 +588,9 @@ class MultiaxialCascade:
                 axis_offset = 1
             pos_weight = None
             if use_pos_weight:
-                pos = targets.sum(axis=0)
-                neg = targets.shape[0] - pos
+                t_inf = targets[informative]
+                pos = t_inf.sum(axis=0)
+                neg = t_inf.shape[0] - pos
                 pos_weight = np.where(pos > 0, neg / np.maximum(pos, 1.0), 1.0)
         else:
             target_dict = {}
@@ -627,16 +630,17 @@ class MultiaxialCascade:
         for fold_idx in range(self.kf.get_n_splits()):
             if verbose:
                 print(f"Training fold {fold_idx + 1}/{self.kf.get_n_splits()}")
-            train_mask = df['fold'] != fold_idx
-            val_mask = df['fold'] == fold_idx
-            X_train_texts = combined_texts[train_mask.values]
-            X_val_texts = combined_texts[val_mask.values]
-            y_train = targets[train_mask.values]
-            y_val = targets[val_mask.values]
+
+            train_mask = (df['fold'] != fold_idx).values & informative
+            val_mask = (df['fold'] == fold_idx).values
+            X_train_texts = combined_texts[train_mask]
+            X_val_texts = combined_texts[val_mask]
+            y_train = targets[train_mask]
+            y_val = targets[val_mask]
 
             if feats_all is not None:
-                f_train = feats_all[train_mask.values]
-                f_val = feats_all[val_mask.values]
+                f_train = feats_all[train_mask]
+                f_val = feats_all[val_mask]
                 if normalize_features:
                     f_train, f_val = standardize_train_val(f_train, f_val)
             else:
@@ -665,7 +669,7 @@ class MultiaxialCascade:
             probs = predict_deberta_proba(model, val_loader, n_outputs,
                                           device=device, multilabel=multilabel)
             if multilabel:
-                oof_preds[val_mask.values] = probs
+                oof_preds[val_mask] = probs
             else:
                 present_classes = np.arange(n_outputs)
                 aligned = np.zeros((len(X_val_texts), n_outputs))
