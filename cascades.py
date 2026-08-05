@@ -157,7 +157,9 @@ class DeBERTaClassificationHead(nn.Module):
             print(f"attention_mask: {attention_mask}")
             print(f"output shape: {outputs.shape}")
             print(f"outputs: {outputs}")
-        pooled = outputs.mean(dim=1)
+        mask = attention_mask.unsqueeze(-1).float()          # (B, T, 1)
+        pooled = (outputs * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1e-6)
+        pooled = pooled.float()
         if torch.isnan(pooled).any():
             print("NaNs detected AFTER pooling!")
             print(f"min: {pooled.nanmin()}")
@@ -198,7 +200,9 @@ class DeBERTaFusionHead(nn.Module):
         outputs = self.deberta(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
         if torch.isnan(outputs).any():
             print("NaNs detected AFTER DeBERTa encoder!")
-        pooled = outputs.mean(dim=1).float()
+        mask = attention_mask.unsqueeze(-1).float()          # (B, T, 1)
+        pooled = (outputs * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1e-6)
+        pooled = pooled.float()
         if torch.isnan(pooled).any():
             print("NaNs detected AFTER pooling!")
         if self.num_features > 0:
