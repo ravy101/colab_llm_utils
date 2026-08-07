@@ -815,7 +815,6 @@ def doc_to_choices_routerbench(item):
                 return choices
     return []
 
-
 def doc_to_answer_routerbench(item):
     """
     Dataset-based logic to resolve gold ground-truth answers from the recovered source_row
@@ -841,34 +840,46 @@ def doc_to_answer_routerbench(item):
             return ans
         return str(item.get("target", ""))
 
-    # --- 3. GSM8K ---
+    # --- 3. HellaSwag & WinoGrande (Handles integer indices -> Letters) ---
+    elif task_family in ["hellaswag", "winogrande"]:
+        ans = None
+        if isinstance(source_row, dict):
+            # HellaSwag stores answer as string integer like "2" or int 2
+            ans = source_row.get("label", source_row.get("answer"))
+        if ans is None:
+            ans = item.get("target")
+
+        # Convert index / numeric string to letter (0 -> A, 1 -> B, 2 -> C, 3 -> D)
+        ans_str = str(ans).strip()
+        if ans_str.isdigit():
+            idx = int(ans_str)
+            if 0 <= idx < 26:
+                return string.ascii_uppercase[idx]
+        return ans_str
+
+    # --- 4. GSM8K ---
     elif task_family == "grade-school-math":
         if isinstance(source_row, dict) and "answer" in source_row:
-            # Extract final numerical answer following '####'
             full_ans = str(source_row["answer"])
             if "####" in full_ans:
                 return full_ans.split("####")[-1].strip()
             return full_ans.strip()
         return str(item.get("target", "")).strip()
 
-    # --- 4. MBPP ---
+    # --- 5. MBPP ---
     elif task_family == "mbpp":
         if isinstance(source_row, dict):
-            # Return test assertions list for sandbox execution / pass@1
             if "test_list" in source_row:
                 return source_row["test_list"]
             elif "code" in source_row:
                 return source_row["code"]
         return item.get("target", "")
 
-    # --- 5. HellaSwag & WinoGrande ---
-    elif task_family in ["hellaswag", "winogrande"]:
-        if isinstance(source_row, dict) and "label" in source_row:
-            return str(source_row["label"])
-        return str(item.get("target", ""))
-
     # Generic Fallback
-    return item.get("target", item.get("answer", ""))
+    fallback = item.get("target", item.get("answer", ""))
+    if str(fallback).isdigit() and task_family in ["hellaswag", "winogrande", "mmlu", "arc-challenge"]:
+        return string.ascii_uppercase[int(fallback)]
+    return fallback
 
 
 routerbench_10k = {

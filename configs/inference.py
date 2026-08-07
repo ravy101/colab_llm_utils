@@ -70,7 +70,7 @@ routerbench_mixed = {
     "do_sample": False,        # Greedy decoding for deterministic logit extraction & evaluation
     "top_k": 0,
     "top_p": 1.0,
-    "repetition_penalty": 1.1, # Slight penalty to prevent infinite loops in code/math
+    "repetition_penalty": 1.2, # Slight penalty to prevent infinite loops in code/math
     "max_new_tokens": 512,     # Generous allowance to accommodate MBPP code & GSM8K chain-of-thought
     "n_samples": 4000,        # Full 10k stream
     "samples_per_file": 50,     # Preserves your existing chunking & saving logic
@@ -81,6 +81,7 @@ routerbench_mixed = {
         "Question:",
         "User:",
         "Human:",
+        "\n\n",
         "<|eot_id|>",
         "<|endoftext|>",
     ],
