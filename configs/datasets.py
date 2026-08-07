@@ -789,8 +789,9 @@ mixeval_ff = {
 
 def doc_to_text_routerbench(item):
     """
-    RouterBench prompts are already fully formatted pre-processed strings.
-    We simply extract and clean the prompt field.
+    RouterBench prompts are already formatted, but GSM8K/Math rows contain 
+    hardcoded 5-shot examples. This strips the few-shot prefix to keep zero-shot 
+    evaluation consistent across the workload.
     """
     prompt = item.get("prompt", item.get("rb_prompt", ""))
     
@@ -798,7 +799,26 @@ def doc_to_text_routerbench(item):
     if isinstance(prompt, str) and prompt.startswith("['") and prompt.endswith("']"):
         prompt = prompt[2:-2]
         
-    return prompt.strip()
+    prompt = prompt.strip()
+    task_family = item.get("task_family", "")
+
+    # --- Strip Hidden Multi-Shot Examples from GSM8K / Math Prompts ---
+    if task_family == "grade-school-math" or "The following are examples of grade school math problems" in prompt:
+        # Strategy 1: Look for the last 'Question:' block or the prompt tail after Shawn's toy example (Example 5)
+        if "Shawn has five toys." in prompt:
+            # Split right after the 5th example answer ('Answer: 9\n\n')
+            parts = prompt.split("Answer: 9\n\n")
+            if len(parts) > 1:
+                target_q = parts[-1].strip()
+                return f"Solve the following grade school math problem and provide a numerical answer.\nQuestion: {target_q}\nAnswer:"
+        
+        # Strategy 2: Fallback regex to capture whatever target text remains after the examples preamble
+        examples_pattern = r"(?:The following are examples.*?\n\n)(?:Question:.*?\nAnswer:.*?\n\n)+"
+        cleaned_prompt = re.sub(examples_pattern, "", prompt, flags=re.DOTALL).strip()
+        if cleaned_prompt != prompt:
+            return f"Solve the following grade school math problem and provide a numerical answer.\nQuestion: {cleaned_prompt}\nAnswer:"
+
+    return prompt
 
 
 def doc_to_choices_routerbench(item):
