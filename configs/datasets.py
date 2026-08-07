@@ -329,6 +329,7 @@ def doc_to_summary(doc):
 wmt14 = {"clean_name": "wmt14fr-en",
         "dataset_name": "fr-en",
         "dataset_location": "wmt/wmt14",
+        "local_file": None,
         "options": None,
         "subset": "train",
         "task_type": "translation",
@@ -340,6 +341,7 @@ wmt14 = {"clean_name": "wmt14fr-en",
 triviaqa = {"clean_name": "TriviaQA",
         "dataset_name": "rc",
         "dataset_location": "mandarjoshi/trivia_qa",
+        "local_file": None,
         "options": None,
         "subset": "train",
         "task_type": "qa",
@@ -352,6 +354,7 @@ triviaqa = {"clean_name": "TriviaQA",
 hotpotqa = {"clean_name": "HotpotQA",
         "dataset_name": "distractor",
         "dataset_location": "hotpotqa/hotpot_qa",
+        "local_file": None,
         "options": None,
         "subset": "train",
         "task_type": "qa",
@@ -364,6 +367,7 @@ hotpotqa = {"clean_name": "HotpotQA",
 nqopen = {"clean_name": "NQOpen",
         "dataset_name": "nq_open",
         "dataset_location": "google-research-datasets/nq_open",
+        "local_file": None,
         "options": None,
         "subset": "train",
         "task_type": "qa",
@@ -375,6 +379,7 @@ nqopen = {"clean_name": "NQOpen",
 truthfulqa = {"clean_name": "TruthfulQA",
         "dataset_name": "generation",
         "dataset_location": "truthfulqa/truthful_qa",
+        "local_file": None,
         "options": None,
         "subset": "validation",
         "task_type": "qa",
@@ -386,6 +391,7 @@ truthfulqa = {"clean_name": "TruthfulQA",
 wmt14ru = {"clean_name": "wmt14ru-en",
         "dataset_name": "ru-en",
         "dataset_location": "wmt/wmt14",
+        "local_file": None,
         "options": None,
         "subset": "test",
         "task_type": "translation",
@@ -397,6 +403,7 @@ wmt14ru = {"clean_name": "wmt14ru-en",
 wmt19de = {"clean_name": "wmt19de-en",
         "dataset_name": "de-en",
         "dataset_location": "wmt/wmt19",
+        "local_file": None,
         "options": None,
         "subset": "train",
         "task_type": "translation",
@@ -409,6 +416,7 @@ wmt19de = {"clean_name": "wmt19de-en",
 wmt14de = {"clean_name": "wmt14de-en",
         "dataset_name": "de-en",
         "dataset_location": "wmt/wmt14",
+        "local_file": None,
         "options": None,
         "subset": "train",
         "task_type": "translation",
@@ -420,6 +428,7 @@ wmt14de = {"clean_name": "wmt14de-en",
 sciq = {"clean_name": "SciQ",
         "dataset_name": "default",
         "dataset_location": "allenai/sciq",
+        "local_file": None,
         "options": None,
         "subset": "train",
         "task_type": "qa",
@@ -432,6 +441,7 @@ xsum = {
     "clean_name": "XSum",
     "dataset_name": "default",
     "dataset_location": "EdinburghNLP/xsum",
+    "local_file": None,
     "options": None,
     "subset": "train",
     "task_type": "summarization",
@@ -445,6 +455,7 @@ samsum = {
     "clean_name": "SAMSum",
     "dataset_name": "default",
     "dataset_location": "knkarthick/samsum",
+    "local_file": None,
     "options": None,
     "subset": "train",
     "task_type": "summarization",
@@ -458,6 +469,7 @@ cnn_dailymail = {
     "clean_name": "CNN_Daily Mail",
     "dataset_name": "3.0.0",
     "dataset_location": "abisee/cnn_dailymail",
+    "local_file": None,
     "options": None,
     "subset": "train",
     "task_type": "summarization",
@@ -475,6 +487,7 @@ strategyqa = {
     "clean_name": "StrategyQA",
     "dataset_name": None,
     "dataset_location": "tasksource/strategy-qa",
+    "local_file": None,
     "options": ["Yes", "No"],
     "subset": "train",
     "task_type": "qa",
@@ -491,6 +504,7 @@ musique = {
     "clean_name": "MuSiQue",
     "dataset_name": "multihop_reasoning",
     "dataset_location": "dgslibisey/MuSiQue",
+    "local_file": None,
     "options": None,
     "subset": "train",
     "task_type": "qa",
@@ -560,6 +574,7 @@ mmlu = {
     "clean_name": "MMLU",
     "dataset_name": "all",
     "dataset_location": "cais/mmlu",
+    "local_file": None,
     "options": ["A", "B", "C", "D"],
     "subset": "test",
     "task_type": "multiple_choice",
@@ -618,6 +633,7 @@ arc_challenge = {
     "clean_name": "ARC-Challenge",
     "dataset_name": "ARC-Challenge",
     "dataset_location": "allenai/ai2_arc",
+    "local_file": None,
     "options": ["A", "B", "C", "D", "E"],
     "subset": "train+test",
     "task_type": "multiple_choice",
@@ -651,6 +667,7 @@ def doc_to_answer_gooaq(item):
 gooaq = {"clean_name": "gooaq",
         "dataset_name": "rc",
         "dataset_location": "allenai/gooaq",
+        "local_file": None,
         "options": None,
         "subset": "train",
         "task_type": "qa",
@@ -713,6 +730,7 @@ mixeval_mc = {
     "clean_name": "MixEval-MC",
     "dataset_name": "MixEval", 
     "dataset_location": "MixEval/MixEval",
+    "local_file": None,
     "options": ["A", "B", "C", "D", "E"], 
     "subset": "multiple_choice",
     "task_type": "multiple_choice",
@@ -735,6 +753,7 @@ bbh_all = {
     "clean_name": "BBH-All",
     "dataset_name": "all_special",  # Custom trigger for the generation script
     "dataset_location": "lukaemon/bbh",
+    "local_file": None,
     "options": None, 
     "subset": "test", 
     "task_type": "qa", 
@@ -750,6 +769,7 @@ mixeval_ff = {
     "clean_name": "MixEval-FF",
     "dataset_name": "MixEval", 
     "dataset_location": "MixEval/MixEval",
+    "local_file": None,
     #"options": ["A", "B", "C", "D", "E"], 
     "subset": "free_form",
     "task_type": "qa",
@@ -760,4 +780,108 @@ mixeval_ff = {
     "doc_to_choices": doc_to_choices_mixeval,
     "filter_fn": None,
     #"filter_fn": lambda x: x.get("problem_type") == "multiple-choice",
+}
+
+
+# ==============================================================================
+# ROUTERBENCH HELPERS & CONFIG
+# ==============================================================================
+
+def doc_to_text_routerbench(item):
+    """
+    RouterBench prompts are already fully formatted pre-processed strings.
+    We simply extract and clean the prompt field.
+    """
+    prompt = item.get("prompt", item.get("rb_prompt", ""))
+    
+    # Handle cases where prompts were saved as single-element stringified lists "['...']"
+    if isinstance(prompt, str) and prompt.startswith("['") and prompt.endswith("']"):
+        prompt = prompt[2:-2]
+        
+    return prompt.strip()
+
+
+def doc_to_choices_routerbench(item):
+    """
+    Extract choices if available in source_row for multiple-choice tasks.
+    """
+    source_row = item.get("source_row")
+    if isinstance(source_row, dict):
+        if "choices" in source_row:
+            choices = source_row["choices"]
+            if isinstance(choices, dict) and "text" in choices: # ARC format
+                return choices["text"]
+            elif isinstance(choices, list): # MMLU format
+                return choices
+    return []
+
+
+def doc_to_answer_routerbench(item):
+    """
+    Dataset-based logic to resolve gold ground-truth answers from the recovered source_row
+    or fallback to RouterBench root target attributes across different task families.
+    """
+    task_family = item.get("task_family", "")
+    source_row = item.get("source_row")
+    
+    # --- 1. MMLU ---
+    if task_family == "mmlu":
+        if isinstance(source_row, dict) and "answer" in source_row:
+            ans = source_row["answer"]
+            return string.ascii_uppercase[ans] if isinstance(ans, int) else str(ans)
+        return str(item.get("target", ""))
+
+    # --- 2. ARC-Challenge ---
+    elif task_family == "arc-challenge":
+        if isinstance(source_row, dict) and "answerKey" in source_row:
+            ans = str(source_row["answerKey"])
+            if ans.isdigit():
+                idx = int(ans) - 1
+                return string.ascii_uppercase[idx] if 0 <= idx < 26 else ans
+            return ans
+        return str(item.get("target", ""))
+
+    # --- 3. GSM8K ---
+    elif task_family == "grade-school-math":
+        if isinstance(source_row, dict) and "answer" in source_row:
+            # Extract final numerical answer following '####'
+            full_ans = str(source_row["answer"])
+            if "####" in full_ans:
+                return full_ans.split("####")[-1].strip()
+            return full_ans.strip()
+        return str(item.get("target", "")).strip()
+
+    # --- 4. MBPP ---
+    elif task_family == "mbpp":
+        if isinstance(source_row, dict):
+            # Return test assertions list for sandbox execution / pass@1
+            if "test_list" in source_row:
+                return source_row["test_list"]
+            elif "code" in source_row:
+                return source_row["code"]
+        return item.get("target", "")
+
+    # --- 5. HellaSwag & WinoGrande ---
+    elif task_family in ["hellaswag", "winogrande"]:
+        if isinstance(source_row, dict) and "label" in source_row:
+            return str(source_row["label"])
+        return str(item.get("target", ""))
+
+    # Generic Fallback
+    return item.get("target", item.get("answer", ""))
+
+
+routerbench_10k = {
+    "clean_name": "RouterBench-10K",
+    "dataset_name": "routerbench_10k",
+    "dataset_location": "local_pickle",
+    "local_file": "/content/drive/MyDrive/phase3/routerbench_10k_sample.pkl",
+    "options": ["A", "B", "C", "D"],
+    "subset": "train",
+    "task_type": "multiple_choice",  # Unified task container
+    "dict_ans": False,
+    "shuffle": False,
+    "doc_to_text": doc_to_text_routerbench,
+    "doc_to_ans": doc_to_answer_routerbench,
+    "doc_to_choices": doc_to_choices_routerbench,
 }
