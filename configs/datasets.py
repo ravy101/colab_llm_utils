@@ -878,9 +878,9 @@ routerbench_10k = {
     "local_file": "/content/drive/MyDrive/phase3/routerbench_10k_sample.pkl",
     "options": ["A", "B", "C", "D"],
     "subset": "train",
-    "task_type": "multiple_choice",  # Unified task container
+    "task_type": "mixed",  # Unified task container
     "dict_ans": False,
-    "shuffle": False,
+    "shuffle": True,
     "doc_to_text": doc_to_text_routerbench,
     "doc_to_ans": doc_to_answer_routerbench,
     "doc_to_choices": doc_to_choices_routerbench,
