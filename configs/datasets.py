@@ -1,5 +1,6 @@
 # Datsets config
 import string
+import re
 
 languages = {"en": "English", "fr": "French", "de": "German",  "cs": "Czech", "ru": "Russian"}
 
