@@ -5,6 +5,122 @@ import re
 from . import likelihood
 from . import scorers
 from . import text
+import ast
+import string
+
+# ------------------------------------------------------------------------------
+# 1. Multiple Choice Evaluator (MMLU, ARC, HellaSwag, WinoGrande)
+# ------------------------------------------------------------------------------
+def evaluate_mcq(response_text, gold_answer):
+    """
+    Stricter MCQ matching that extracts candidate choice letters (A, B, C, D)
+    and checks against the gold uppercase letter target.
+    """
+    if not response_text:
+        return 0
+    
+    txt = str(response_text).strip()
+    gold_str = str(gold_answer).strip().upper()
+    
+    # 1. Match explicit statements like 'Answer: C' or 'Option A'
+    match = re.search(r'(?:answer|option|choice)\s*(?:is|:|=)?\s*["\']?([A-E])["\']?', txt, re.IGNORECASE)
+    if match:
+        pred = match.group(1).upper()
+        return 1 if pred == gold_str else 0
+        
+    # 2. Extract first or last standalone letter token
+    tokens = re.findall(r'(?<![A-Za-z0-9])([A-E])(?![A-Za-z0-9])', txt)
+    if tokens:
+        # Check first token (often the initial token generated after prompt)
+        if tokens[0].upper() == gold_str:
+            return 1
+        # Check last token as fallback
+        if tokens[-1].upper() == gold_str:
+            return 1
+            
+    return 0
+
+
+# ------------------------------------------------------------------------------
+# 2. GSM8K / Math Evaluator
+# ------------------------------------------------------------------------------
+def evaluate_gsm8k(response_text, gold_answer):
+    """
+    Extracts numerical answer from CoT/math responses and compares with gold.
+    Handles '#### 42', commas in large numbers ('1,000'), and floats.
+    """
+    if not response_text:
+        return 0
+
+    txt = str(response_text).strip()
+    gold_str = str(gold_answer).strip()
+
+    # Normalize gold numerical target
+    gold_num_match = re.search(r'[-+]?\d+(?:\.\d+)?', gold_str.replace(',', ''))
+    if not gold_num_match:
+        return 0
+    gold_val = gold_num_match.group(0)
+
+    # 1. Search for explicit '#### <number>' pattern (standard GSM8K CoT format)
+    if '####' in txt:
+        candidate = txt.split('####')[-1].strip()
+        cand_match = re.search(r'[-+]?\d+(?:\.\d+)?', candidate.replace(',', ''))
+        if cand_match and cand_match.group(0) == gold_val:
+            return 1
+
+    # 2. Search for explicit 'The answer is X' pattern
+    ans_match = re.search(r'(?:the\s+answer\s+is|final\s+answer|equals?)\s*[:=]?\s*\$?\s*([-+]?\d+(?:\.\d+)?)', txt, re.IGNORECASE)
+    if ans_match:
+        if ans_match.group(1).replace(',', '') == gold_val:
+            return 1
+
+    # 3. Fallback: Check the final extracted number in the response
+    all_numbers = re.findall(r'[-+]?\d+(?:\.\d+)?', txt.replace(',', ''))
+    if all_numbers:
+        if all_numbers[-1] == gold_val:
+            return 1
+
+    return 0
+
+
+# ------------------------------------------------------------------------------
+# 3. MBPP / Python Code Evaluator
+# ------------------------------------------------------------------------------
+def evaluate_mbpp_code(response_text, source_row_tests):
+    """
+    Safely executes model Python functions against MBPP test list assertions.
+    """
+    if not response_text or not source_row_tests:
+        return 0
+
+    code_str = str(response_text).strip()
+
+    # Clean markdown triple backticks if present
+    if "```python" in code_str:
+        code_str = code_str.split("```python")[1].split("```")[0]
+    elif "```" in code_str:
+        code_str = code_str.split("```")[1].split("```")[0]
+
+    # Ensure tests are in list format
+    if isinstance(source_row_tests, str):
+        try:
+            tests = ast.literal_eval(source_row_tests)
+        except Exception:
+            tests = [source_row_tests]
+    else:
+        tests = source_row_tests
+
+    # Standardize function definition if code generation was incomplete
+    execution_code = code_str + "\n\n" + "\n".join(tests)
+
+    # Isolated execution environment
+    exec_globals = {}
+    try:
+        # Run code against test assertions in isolated dict namespace
+        exec(execution_code, exec_globals)
+        return 1  # All test cases passed
+    except Exception:
+        return 0  # Failed runtime, assertion, or syntax check
 
 def clean_mcq_strict(output_text, options_list):
     """
@@ -54,6 +170,113 @@ def clean_mcq_strict(output_text, options_list):
         return lookup[matches[-1].group(1).lower()]
 
     return "none"
+
+
+def process_dataframe_routerbench(df, self_conf=False, p_true=False, thinking=False):
+    """
+    Processes model logits and evaluates RouterBench mixed workload generations
+    producing clean boolean (0/1) correctness labels.
+    """
+    # Drop empty responses
+    df = df[df['responses'].str.len() > 0].copy()
+
+    # --- 1. Extract Likelihoods & Confidence Signals ---
+    likes = []
+    all_probas = []
+    top_probs = []
+
+    for l, t in zip(df['logit_outs'], df['token_outs']):
+        gen_tokens = t[-len(l):]
+        candidate_tokens = [list(ll.keys()) for ll in l]
+        like_values = [list(ll.values()) for ll in l]
+        all_prob = [likelihood.ll_to_proba(np.array(list(ll.values()))) for ll in l]
+        all_probas.append(all_prob)
+
+        token_likes = []
+        token_probs = []
+        for i, token in enumerate(gen_tokens):
+            try:
+                idx = candidate_tokens[i].index(token)
+            except Exception:
+                idx = -1
+            token_likes.append(like_values[i][idx] if idx != -1 else -10.0)
+            token_probs.append(all_prob[i][idx] if idx != -1 else 0.0)
+
+        likes.append(np.array(token_likes))
+        top_probs.append(np.array(token_probs))
+
+    df['likes'] = likes
+    df['all_probas'] = all_probas
+    df['top_probas'] = top_probs
+    df['chow_av'] = [likelihood.chow_av(l) for l in df['top_probas']]
+    df['chow_sum'] = [likelihood.chow_sum(l) for l in df['top_probas']]
+    df['chow_quantile'] = [likelihood.chow_quantile(l) for l in df['top_probas']]
+    df['log_chow_av'] = [likelihood.log_chow_av(l) for l in df['top_probas']]
+
+    if thinking:
+        splits = [text.split_tagged_text(a[0]) for a in df['responses']]
+        df['thinking_text'] = [s[1] for s in splits]
+        df['responses'] = [[s[0]] for s in splits]
+    else:
+        df['thinking_text'] = None
+
+    if self_conf:
+        df['self_conf'] = [m['self_conf'] for m in df['meta']]
+
+    if p_true:
+        df['p_true'] = [m['p_true'] for m in df['meta']]
+
+    # --- 2. Dynamic Task-Based 0/1 Scoring ---
+    scores = []
+    scored_responses = []
+
+    for idx, row in df.iterrows():
+        # Get response string (unwrapping list if needed)
+        resp = row['responses']
+        resp_text = resp[0] if isinstance(resp, list) and len(resp) > 0 else str(resp)
+        
+        gold_ans = row['ans']
+        task_fam = row.get('task_family', '')
+
+        # Resolve task family if nested in meta or source_row
+        if not task_fam and isinstance(row.get('meta'), dict):
+            task_fam = row['meta'].get('task_family', '')
+
+        score = 0
+        
+        # A. Multiple Choice Families (MMLU, ARC, HellaSwag, WinoGrande)
+        if task_fam in ['mmlu', 'arc-challenge', 'hellaswag', 'winogrande']:
+            score = evaluate_mcq(resp_text, gold_ans)
+
+        # B. Multi-Step Math (GSM8K)
+        elif task_fam == 'grade-school-math':
+            score = evaluate_gsm8k(resp_text, gold_ans)
+
+        # C. Functional Code Generation (MBPP)
+        elif task_fam == 'mbpp':
+            tests = gold_ans
+            if isinstance(row.get('source_row'), dict) and 'test_list' in row['source_row']:
+                tests = row['source_row']['test_list']
+            score = evaluate_mbpp_code(resp_text, tests)
+
+        # D. Generic Fallback (Coerced MCQ or Exact String Match)
+        else:
+            if str(resp_text).strip().upper() == str(gold_ans).strip().upper():
+                score = 1
+            else:
+                score = evaluate_mcq(resp_text, gold_ans)
+
+        scores.append(score)
+        scored_responses.append(resp_text)
+
+    # Attach clean 0/1 target vector y for router training & evaluation
+    df['scored_responses'] = scored_responses
+    df['is_correct'] = scores
+    df['acc'] = scores  # 0/1 numeric score matching existing pipeline metrics
+
+    gc.collect()
+    return df
+
 
 def process_dataframe(df, dataset_config, metric_dict, self_conf = False, p_true = False, thinking = False):
   df = df[df['responses'].str.len() >0]
