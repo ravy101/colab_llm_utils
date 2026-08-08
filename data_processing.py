@@ -122,6 +122,41 @@ def evaluate_mbpp_code(response_text, source_row_tests):
     except Exception:
         return 0  # Failed runtime, assertion, or syntax check
 
+def evaluate_mcq_with_clean_strict(output_text, gold_answer, options_list=["A", "B", "C", "D"]):
+    """
+    Evaluates MCQ output using clean_mcq_strict, ensuring gold answers 
+    and options align properly (mapping numeric gold answers like 2 -> 'C').
+    """
+    if not output_text:
+        return 0
+
+    # 1. Normalize Gold Answer (handles 2 -> 'C', '2' -> 'C')
+    gold_str = str(gold_answer).strip()
+    if gold_str.isdigit():
+        idx = int(gold_str)
+        if 0 <= idx < len(options_list):
+            gold_str = options_list[idx]
+
+    gold_str = gold_str.upper()
+
+    # 2. Extract prediction using clean_mcq_strict
+    pred = clean_mcq_strict(output_text, options_list)
+
+    # If strict parsing returned 'none', try extracting the very FIRST standalone token
+    if pred == "none":
+        txt = str(output_text).strip()
+        escaped = [re.escape(str(opt)) for opt in options_list]
+        options_pattern = "|".join(escaped)
+        token_pattern = rf'(?<![A-Za-z0-9])({options_pattern})(?![A-Za-z0-9])'
+        
+        matches = list(re.finditer(token_pattern, txt, flags=re.IGNORECASE))
+        if matches:
+            # Pick FIRST match for direct output
+            pred = matches[0].group(1).upper()
+
+    # 3. Compare prediction to gold
+    return 1 if pred.upper() == gold_str else 0
+
 def clean_mcq_strict(output_text, options_list):
     """
     Parse LLM MCQ outputs into one of the allowed option tokens.
@@ -246,7 +281,7 @@ def process_dataframe_routerbench(df, dataset_config, metric_dict, self_conf=Fal
         
         # A. Multiple Choice Families (MMLU, ARC, HellaSwag, WinoGrande)
         if task_fam in ['mmlu', 'arc-challenge', 'hellaswag', 'winogrande']:
-            score = evaluate_mcq(resp_text, gold_ans)
+            score = evaluate_mcq_with_clean_strict(resp_text, gold_ans)
 
         # B. Multi-Step Math (GSM8K)
         elif task_fam == 'grade-school-math':
@@ -264,7 +299,7 @@ def process_dataframe_routerbench(df, dataset_config, metric_dict, self_conf=Fal
             if str(resp_text).strip().upper() == str(gold_ans).strip().upper():
                 score = 1
             else:
-                score = evaluate_mcq(resp_text, gold_ans)
+                score = evaluate_mcq_with_clean_strict(resp_text, gold_ans)
 
         scores.append(score)
         scored_responses.append(resp_text)
