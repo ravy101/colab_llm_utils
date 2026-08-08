@@ -172,7 +172,7 @@ def clean_mcq_strict(output_text, options_list):
     return "none"
 
 
-def process_dataframe_routerbench(df, self_conf=False, p_true=False, thinking=False):
+def process_dataframe_routerbench(df, dataset_config, metric_dict, self_conf=False, p_true=False, thinking=False):
     """
     Processes model logits and evaluates RouterBench mixed workload generations
     producing clean boolean (0/1) correctness labels.
