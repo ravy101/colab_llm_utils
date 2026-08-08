@@ -783,26 +783,25 @@ mixeval_ff = {
     #"filter_fn": lambda x: x.get("problem_type") == "multiple-choice",
 }
 
-# ==============================================================================
-# ROUTERBENCH HELPERS & CONFIG
-# ==============================================================================
-
 def doc_to_text_routerbench(item):
     """
-    RouterBench prompts are pre-formatted strings. This function extracts the 
-    prompt and strips hardcoded multi-shot example prefixes (e.g. GSM8K 5-shot)
-    to maintain a pure zero-shot evaluation setting.
+    Extracts the prompt string for RouterBench items, stripping bracket/quote wrappers
+    and removing multi-shot GSM8K preamble examples to enforce a clean 0-shot setting.
     """
-    prompt = item.get("prompt", item.get("rb_prompt", ""))
+    prompt = item.get("prompt", item.get("prompts", item.get("rb_prompt", "")))
     
-    # Clean single-element stringified list wrappers "['...']"
-    if isinstance(prompt, str) and prompt.startswith("['") and prompt.endswith("']"):
+    # Handle single-element list wrappers or stringified list representation "['...']"
+    if isinstance(prompt, list) and len(prompt) > 0:
+        prompt = prompt[0]
+    elif isinstance(prompt, str) and prompt.startswith("['") and prompt.endswith("']"):
+        prompt = prompt[2:-2]
+    elif isinstance(prompt, str) and prompt.startswith('["') and prompt.endswith('"]'):
         prompt = prompt[2:-2]
         
-    prompt = prompt
+    prompt = str(prompt).strip().replace('\\n', '\n')
     task_family = item.get("task_family", "")
 
-    # --- Strip Hardcoded 5-Shot Examples from GSM8K / Math Prompts ---
+    # --- Strip Hardcoded 5-Shot Examples from GSM8K Prompts ---
     if task_family == "grade-school-math" or "The following are examples of grade school math problems" in prompt:
         if "Shawn has five toys." in prompt:
             parts = prompt.split("Answer: 9\n\n")
@@ -810,7 +809,7 @@ def doc_to_text_routerbench(item):
                 target_q = parts[-1].strip()
                 return f"Solve the following grade school math problem and provide a numerical answer.\nQuestion: {target_q}\nAnswer:"
         
-        # Fallback regex strip
+        # General regex cleanup for multi-shot math preambles
         examples_pattern = r"(?:The following are examples.*?\n\n)(?:Question:.*?\nAnswer:.*?\n\n)+"
         cleaned_prompt = re.sub(examples_pattern, "", prompt, flags=re.DOTALL).strip()
         if cleaned_prompt != prompt:
@@ -819,97 +818,83 @@ def doc_to_text_routerbench(item):
     return prompt
 
 
-def doc_to_choices_routerbench(item):
-    """
-    Extracts choice text list if present in source_row for multiple choice tasks.
-    """
-    source_row = item.get("source_row")
-    if isinstance(source_row, dict):
-        choices = source_row.get("choices")
-        if isinstance(choices, dict) and "text" in choices:  # ARC format
-            return choices["text"]
-        elif isinstance(choices, list):  # MMLU / HellaSwag format
-            return choices
-    return []
-
-
 def doc_to_answer_routerbench(item):
     """
-    Extracts and standardizes ground-truth gold answers across all task families.
-    Converts raw integer indices into standardized uppercase letters (A, B, C, D)
-    accounting for task-specific indexing conventions (0-indexed vs 1-indexed).
-    """
-    task_family = item.get("task_family", "")
-    source_row = item.get("source_row") if isinstance(item.get("source_row"), dict) else {}
+    Returns the pre-aligned ground-truth target.
     
-    # Extract raw target from item or source_row
-    raw_ans = source_row.get("label", source_row.get("answer", source_row.get("answerKey", item.get("target", item.get("answer")))))
-    if raw_ans is None:
-        raw_ans = item.get("target", "")
+    Since target realignment is executed directly during dataset construction 
+    (from full to the 10k stratified sample), this function extracts the clean 
+    target string directly from the item dictionary, while providing robust fallbacks.
+    """
+    # 1. Primary: Use the pre-aligned target created during 10k sample building
+    target = item.get("target")
+    if target is not None and str(target).strip() != "":
+        ans_str = str(target).strip()
+        # Clean stringified list wrappers if present
+        if ans_str.startswith("['") and ans_str.endswith("']"):
+            ans_str = ans_str[2:-2]
+        return ans_str.strip()
 
-    ans_str = str(raw_ans).strip()
+    # 2. Fallback: Check root answer fields
+    ans = item.get("ans", item.get("answer"))
+    
+    # 3. Fallback: Extract from source_row metadata
+    source_row = item.get("source_row")
+    if ans is None and isinstance(source_row, dict):
+        ans = source_row.get("label", source_row.get("answerKey", source_row.get("answer")))
 
-    # --- 1. MMLU (0-indexed if numeric, or uppercase letter A, B, C, D) ---
-    if task_family == "mmlu":
-        if ans_str.isdigit():
-            idx = int(ans_str)
-            if 0 <= idx < 26:
-                return string.ascii_uppercase[idx]
-        return ans_str.upper()
+    ans_str = str(ans).strip() if ans is not None else ""
+    task_family = item.get("task_family", "")
 
-    # --- 2. HellaSwag (STRICT 0-INDEXED: 0->A, 1->B, 2->C, 3->D) ---
-    elif task_family == "hellaswag":
-        if ans_str.isdigit():
-            idx = int(ans_str)
-            if 0 <= idx < 26:
-                return string.ascii_uppercase[idx]
-        return ans_str.upper()
-
-    # --- 3. WinoGrande (STRICT 1-INDEXED: 1->A, 2->B) ---
-    elif task_family == "winogrande":
+    # Task-specific fallback index-to-letter mappings
+    if task_family == "winogrande":
         if ans_str == "1":
             return "A"
         elif ans_str == "2":
             return "B"
-        elif ans_str.isdigit():
-            # If 0-indexed fell through
-            return string.ascii_uppercase[int(ans_str)]
-        return ans_str.upper()
-
-    # --- 4. ARC-Challenge (STRICT 1-INDEXED: 1->A, 2->B, 3->C, 4->D or 'A','B'...) ---
-    elif task_family == "arc-challenge":
-        if ans_str.isdigit():
-            idx = int(ans_str) - 1
-            if 0 <= idx < 26:
-                return string.ascii_uppercase[idx]
-        return ans_str.upper()
-
-    # --- 5. GSM8K / Math (Extract numerical target value) ---
-    elif task_family == "grade-school-math":
-        if "####" in ans_str:
-            return ans_str.split("####")[-1].strip()
-        return ans_str
-
-    # --- 6. MBPP (Return test assertion list or code string) ---
-    elif task_family == "mbpp":
-        if "test_list" in source_row:
-            return source_row["test_list"]
-        return item.get("target", ans_str)
-
-    # --- Fallback for standard multiple choice ---
-    if ans_str.isdigit():
+    elif task_family in ["hellaswag", "mmlu"] and ans_str.isdigit():
         idx = int(ans_str)
         if 0 <= idx < 26:
             return string.ascii_uppercase[idx]
+    elif task_family == "arc-challenge" and ans_str.isdigit():
+        idx = int(ans_str) - 1
+        if 0 <= idx < 26:
+            return string.ascii_uppercase[idx]
 
-    return ans_str
+    return ans_str.upper() if len(ans_str) == 1 and ans_str.isalpha() else ans_str
 
+
+def doc_to_choices_routerbench(item):
+    """
+    Extracts choice option list from source_row metadata or directly parses 
+    the choices presented in the prompt string if source_row is absent.
+    """
+    source_row = item.get("source_row")
+    if isinstance(source_row, dict):
+        choices = source_row.get("choices")
+        # ARC format: {'text': [...], 'label': [...]}
+        if isinstance(choices, dict) and "text" in choices:
+            return choices["text"]
+        # MMLU / HellaSwag format: ['choice1', 'choice2', ...]
+        elif isinstance(choices, list):
+            return choices
+
+    # Fallback: Parse choices directly from prompt text
+    prompt = doc_to_text_routerbench(item)
+    parsed_choices = []
+    lines = prompt.split("\n")
+    for line in lines:
+        line_s = line.strip()
+        if len(line_s) > 2 and line_s[0].upper() in ['A', 'B', 'C', 'D', 'E'] and line_s[1] in [')', '.', ':']:
+            parsed_choices.append(line_s[2:].strip())
+
+    return parsed_choices
 
 routerbench_10k = {
     "clean_name": "RouterBench-10K",
     "dataset_name": "routerbench_10k",
     "dataset_location": "local_pickle",
-    "local_file": "/content/drive/MyDrive/phase3/routerbench_10k_sample.pkl",
+    "local_file": "/content/drive/MyDrive/phase3/routerbench_recovered/routerbench_10k_sample.pkl",
     "options": ["A", "B", "C", "D", "E"],
     "subset": "train",
     "task_type": "mixed",  # Unified task container
