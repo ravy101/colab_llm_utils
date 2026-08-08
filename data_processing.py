@@ -9,76 +9,79 @@ import ast
 import string
 
 # ------------------------------------------------------------------------------
-# 1. Multiple Choice Evaluator (MMLU, ARC, HellaSwag, WinoGrande)
+# 1. Normalized MCQ Evaluator (Fixes HellaSwag '1' -> 'B' and Qwen 'B.' prefixes)
 # ------------------------------------------------------------------------------
-def evaluate_mcq(response_text, gold_answer):
-    """
-    Stricter MCQ matching that extracts candidate choice letters (A, B, C, D)
-    and checks against the gold uppercase letter target.
-    """
+def evaluate_mcq_robust(response_text, gold_answer, options_list=["A", "B", "C", "D", "E"]):
     if not response_text:
         return 0
-    
+
+    # A. Normalize Gold Answer (handles integer 1 -> 'B', '2' -> 'C')
+    gold_str = str(gold_answer).strip()
+    if gold_str.isdigit():
+        idx = int(gold_str)
+        if 0 <= idx < len(options_list):
+            gold_str = options_list[idx]
+
+    gold_str = gold_str.upper()
+
+    # B. Clean response text
     txt = str(response_text).strip()
-    gold_str = str(gold_answer).strip().upper()
-    
-    # 1. Match explicit statements like 'Answer: C' or 'Option A'
-    match = re.search(r'(?:answer|option|choice)\s*(?:is|:|=)?\s*["\']?([A-E])["\']?', txt, re.IGNORECASE)
-    if match:
-        pred = match.group(1).upper()
+
+    # C. Match explicit 'Answer: B' or 'The correct answer is B'
+    explicit = re.search(r'(?:correct\s+answer|answer|choice|option)\s*(?:is|:|=)?\s*["\']?([A-E])["\']?', txt, re.IGNORECASE)
+    if explicit:
+        pred = explicit.group(1).upper()
         return 1 if pred == gold_str else 0
-        
-    # 2. Extract first or last standalone letter token
+
+    # D. Match FIRST standalone letter token (e.g., ' B\n', 'B.', 'B)')
     tokens = re.findall(r'(?<![A-Za-z0-9])([A-E])(?![A-Za-z0-9])', txt)
     if tokens:
-        # Check first token (often the initial token generated after prompt)
-        if tokens[0].upper() == gold_str:
+        first_pred = tokens[0].upper()
+        if first_pred == gold_str:
             return 1
-        # Check last token as fallback
-        if tokens[-1].upper() == gold_str:
-            return 1
-            
+
     return 0
 
 
 # ------------------------------------------------------------------------------
-# 2. GSM8K / Math Evaluator
+# 2. Robust Math / GSM8K Evaluator (Extracts numbers from CoT & \boxed{})
 # ------------------------------------------------------------------------------
-def evaluate_gsm8k(response_text, gold_answer):
-    """
-    Extracts numerical answer from CoT/math responses and compares with gold.
-    Handles '#### 42', commas in large numbers ('1,000'), and floats.
-    """
+def evaluate_gsm8k_robust(response_text, gold_answer):
     if not response_text:
         return 0
 
     txt = str(response_text).strip()
     gold_str = str(gold_answer).strip()
 
-    # Normalize gold numerical target
-    gold_num_match = re.search(r'[-+]?\d+(?:\.\d+)?', gold_str.replace(',', ''))
-    if not gold_num_match:
+    # Extract clean target number from gold string
+    gold_nums = re.findall(r'[-+]?\d+(?:\.\d+)?', gold_str.replace(',', ''))
+    if not gold_nums:
         return 0
-    gold_val = gold_num_match.group(0)
+    gold_val = gold_nums[-1]
 
-    # 1. Search for explicit '#### <number>' pattern (standard GSM8K CoT format)
-    if '####' in txt:
-        candidate = txt.split('####')[-1].strip()
-        cand_match = re.search(r'[-+]?\d+(?:\.\d+)?', candidate.replace(',', ''))
-        if cand_match and cand_match.group(0) == gold_val:
+    # A. Check \boxed{16} format
+    boxed_match = re.search(r'\\boxed\{([-+]?\d+(?:\.\d+)?)\}', txt)
+    if boxed_match:
+        if boxed_match.group(1).replace(',', '') == gold_val:
             return 1
 
-    # 2. Search for explicit 'The answer is X' pattern
-    ans_match = re.search(r'(?:the\s+answer\s+is|final\s+answer|equals?)\s*[:=]?\s*\$?\s*([-+]?\d+(?:\.\d+)?)', txt, re.IGNORECASE)
+    # B. Check #### 16 format
+    if '####' in txt:
+        tail = txt.split('####')[-1]
+        tail_nums = re.findall(r'[-+]?\d+(?:\.\d+)?', tail.replace(',', ''))
+        if tail_nums and tail_nums[-1] == gold_val:
+            return 1
+
+    # C. Check 'Answer: 16' or 'is 16'
+    ans_match = re.search(r'(?:answer|equals?|total|is)\s*[:=]?\s*\$?\s*([-+]?\d+(?:\.\d+)?)', txt, re.IGNORECASE)
     if ans_match:
         if ans_match.group(1).replace(',', '') == gold_val:
             return 1
 
-    # 3. Fallback: Check the final extracted number in the response
-    all_numbers = re.findall(r'[-+]?\d+(?:\.\d+)?', txt.replace(',', ''))
-    if all_numbers:
-        if all_numbers[-1] == gold_val:
-            return 1
+    # D. Fallback: Check the VERY LAST number in the generated text
+    all_nums = re.findall(r'[-+]?\d+(?:\.\d+)?', txt.replace(',', ''))
+    if all_nums and all_nums[-1] == gold_val:
+        return 1
 
     return 0
 
@@ -122,7 +125,7 @@ def evaluate_mbpp_code(response_text, source_row_tests):
     except Exception:
         return 0  # Failed runtime, assertion, or syntax check
     
-    
+
 def clean_mcq_strict(output_text, options_list):
     """
     Parse LLM MCQ outputs into one of the allowed option tokens.
@@ -315,25 +318,11 @@ def process_dataframe_routerbench(df, dataset_config, metric_dict, self_conf=Fal
         
         # A. Multiple Choice Families (MMLU, ARC, HellaSwag, WinoGrande)
         if task_fam in ['mmlu', 'arc-challenge', 'hellaswag', 'winogrande']:
-          score = evaluate_mcq_with_clean_strict(resp_text, gold_ans)
-
-        # B. Multi-Step Math (GSM8K)
+            score = evaluate_mcq_robust(resp_text, gold_ans)
         elif task_fam == 'grade-school-math':
-            score = evaluate_gsm8k(resp_text, gold_ans)
-
-        # C. Functional Code Generation (MBPP)
-        elif task_fam == 'mbpp':
-            tests = gold_ans
-            if isinstance(row.get('source_row'), dict) and 'test_list' in row['source_row']:
-                tests = row['source_row']['test_list']
-            score = evaluate_mbpp_code(resp_text, tests)
-
-        # D. Generic Fallback (Coerced MCQ or Exact String Match)
+            score = evaluate_gsm8k_robust(resp_text, gold_ans)
         else:
-            if str(resp_text).strip().upper() == str(gold_ans).strip().upper():
-                score = 1
-            else:
-                score = evaluate_mcq_with_clean_strict(resp_text, gold_ans)
+            score = evaluate_mcq_robust(resp_text, gold_ans)
 
         scores.append(score)
         scored_responses.append(resp_text)
