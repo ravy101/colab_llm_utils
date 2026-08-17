@@ -299,6 +299,23 @@ def process_dataframe(df, dataset_config, metric_dict=None, self_conf=False, p_t
         df['rouge'] = results
         df['em'] = results_em
         df['f1'] = results_f1
+    elif task_type == 'multiple_choice':
+        for idx, row in df.iterrows():
+            out = row['responses']
+            resp_str = out[0] if isinstance(out, list) and len(out) > 0 else str(out)
+            ans = row['ans']
+            prompt = row['prompts']
+            pred = clean_mcq_strict(resp_str, options_list=dataset_config.get("options"), prompt_text=prompt)
+            score = evaluate_mcq_robust(resp_str, ans, prompt_text=prompt)
+            response = [pred]
+            graded_responses.append(response)
+            results_em.append(score)
+        df['scored_responses'] = graded_responses
+        df['rouge'] = results
+        df['em'] = results_em
+        df['f1'] = results_f1
+
+
     gc.collect()
     return df
 
