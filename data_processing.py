@@ -127,11 +127,18 @@ def clean_mcq_strict(output_text, options_list=None, prompt_text=None):
 
 def normalize_mcq_gold(gold_answer, options_list):
     """
-    Convert common gold-answer representations into the canonical
+    Convert common gold-answer representations into canonical
     option letter A/B/C/D/E.
     """
+
     if gold_answer is None:
         return "none"
+
+    # Handle list/tuple answers such as ['C']
+    if isinstance(gold_answer, (list, tuple)):
+        if len(gold_answer) == 0:
+            return "none"
+        gold_answer = gold_answer[0]
 
     gold = str(gold_answer).strip()
 
@@ -140,34 +147,29 @@ def normalize_mcq_gold(gold_answer, options_list):
 
     options = [str(x).strip().upper() for x in options_list]
 
-    # ---------------------------------------------------------
     # Already a letter
-    # ---------------------------------------------------------
     if gold.upper() in options:
         return gold.upper()
 
-    # ---------------------------------------------------------
-    # Numeric index: 0,1,2,3 or 1,2,3,4
-    #
-    # Only convert if the dataset's answer is actually numeric.
-    # ---------------------------------------------------------
+    # Numeric answer
     try:
         n = int(gold)
 
+        # 0-based indexing
         if 0 <= n < len(options):
             return options[n]
 
+        # 1-based indexing
         if 1 <= n <= len(options):
             return options[n - 1]
 
     except (ValueError, TypeError):
         pass
 
-    # ---------------------------------------------------------
-    # Sometimes gold answer is "(A)" / "A." etc.
-    # ---------------------------------------------------------
+    # Handle things like "(C)", "[C]", "C.", "C:"
     match = re.match(
-        rf'^\s*[\(\[]?({"|".join(re.escape(x) for x in options)})[\)\].:]?\s*$',
+        rf'^\s*[\(\[]?({"|".join(re.escape(x) for x in options)})'
+        rf'[\)\]\.\:]?\s*$',
         gold,
         re.IGNORECASE
     )
