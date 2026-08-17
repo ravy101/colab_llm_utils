@@ -223,12 +223,16 @@ def process_dataframe(df, dataset_config, metric_dict=None, self_conf=False, p_t
 
     # 5. Task Evaluation Blocks
     graded_responses = []
+    results = []
+    results_bl = []
     results_em = []
+    results_f1 = []
 
     # --------------------------------------------------------------------------
     # 'mixed' MULTI-TASK EVALUATION (RouterBench-10K)
     # --------------------------------------------------------------------------
-    if dataset_config.get('task_type') == 'mixed':
+    task_type = dataset_config.get('task_type')
+    if task_type == 'mixed':
         for idx, row in df.iterrows():
             out = row['responses']
             resp_str = out[0] if isinstance(out, list) and len(out) > 0 else str(out)
@@ -262,7 +266,39 @@ def process_dataframe(df, dataset_config, metric_dict=None, self_conf=False, p_t
         df['scored_responses'] = graded_responses
         df['em'] = results_em
         df['is_correct'] = results_em
-
+    elif task_type == 'translation':
+        for out, ans, question in zip(df['responses'], df['ans'], df['prompts']):
+            graded_responses.append(out)
+            results.append(metric_dict['meteor'].compute(predictions=out, references=[ans]))
+            results_bl.append(metric_dict['bleurt'].compute(predictions=out, references=[ans]))
+        df['scored_responses'] = graded_responses
+        df['meteor'] = [r['meteor'] for r in results]
+        df['bleurt'] = [r['scores'][0] for r in results_bl]
+    elif task_type == 'qa':
+        for out, ans, question in zip(df['responses'], df['ans'], df['prompts']):
+            if dataset_config['dict_ans']:
+                if dataset_config['clean_name'] == 'TruthfulQA' or dataset_config['clean_name'] == 'HotpotQA':
+                    targets = ans
+                elif isinstance(ans, list):
+                    targets = ans
+                else:
+                    targets = ans['normalized_aliases']
+            elif dataset_config['clean_name'] == 'StrategyQA':
+                if ans == True:
+                    targets = ["True", "true", "Yes", "yes"]
+                elif ans == False:
+                            targets = ["False", "false", "No", "no"]
+                else:
+                    targets = ans
+            response = out
+            graded_responses.append(response)
+            results.append(scorers.best_rouge_l(response, targets))
+            results_em.append(scorers.best_em(response, targets))
+            results_f1.append(scorers.best_f1(response, targets))
+        df['scored_responses'] = graded_responses
+        df['rouge'] = results
+        df['em'] = results_em
+        df['f1'] = results_f1
     gc.collect()
     return df
 
