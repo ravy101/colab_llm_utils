@@ -441,6 +441,7 @@ def process_dataframe(df, dataset_config, metric_dict=None, self_conf=False, p_t
             results_em.append(score)
         df['scored_responses'] = graded_responses
         df['em'] = results_em
+        df['is_correct'] = results_em
 
 
     gc.collect()
