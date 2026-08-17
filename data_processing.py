@@ -8,90 +8,194 @@ from . import text
 import ast
 import string
 
-# ==============================================================================
-# 1. HELPER PARSERS & TASK EVALUATORS
-# ==============================================================================
-
 def detect_options_from_prompt(prompt_text):
     """
-    Detects allowed option letters in the prompt (handles 4-choice A-D and 5-choice A-E).
+    Detect whether the prompt appears to contain A-D or A-E options.
+    Defaults to A-D.
     """
     txt = str(prompt_text)
-    if re.search(r'(?<![A-Za-z0-9])[E|e][\)\.\:\s]', txt) or "E)" in txt or "E." in txt:
+
+    # Look for an actual E option marker, e.g. "E)", "E.", "E:"
+    if re.search(r'(?<![A-Za-z0-9])E[\)\.\:](?![A-Za-z0-9])', txt, re.IGNORECASE):
         return ["A", "B", "C", "D", "E"]
+
     return ["A", "B", "C", "D"]
 
 
 def clean_mcq_strict(output_text, options_list=None, prompt_text=None):
     """
-    Parse LLM MCQ outputs into one of the allowed option tokens.
-    Prefers explicit answer statements, then falls back to first standalone option token.
+    Extract a single MCQ option letter from an LLM response.
     """
-    if not output_text:
+    if output_text is None:
+        return "none"
+
+    txt = str(output_text).strip()
+
+    if not txt:
         return "none"
 
     if options_list is None:
-        options_list = detect_options_from_prompt(prompt_text) if prompt_text else ["A", "B", "C", "D", "E"]
+        options_list = (
+            detect_options_from_prompt(prompt_text)
+            if prompt_text
+            else ["A", "B", "C", "D", "E"]
+        )
 
-    txt = str(output_text).strip()
-    lookup = {str(opt).lower(): opt for opt in options_list}
-    escaped = [re.escape(str(opt)) for opt in options_list]
-    options_pattern = "|".join(escaped)
+    options = [str(x).strip().upper() for x in options_list]
+    lookup = {x.lower(): x for x in options}
 
-    token_pattern = rf'(?<![A-Za-z0-9])({options_pattern})(?![A-Za-z0-9])'
+    options_pattern = "|".join(re.escape(x) for x in options)
 
-    answer_pattern = (
-        rf'(?i)'
-        rf'(?:'
-        rf'final\s+answer|'
-        rf'correct\s+answer|'
-        rf'answer|'
-        rf'choice|'
-        rf'option'
-        rf')'
-        rf'\s*(?:is|should\s+be|=|:|-)?\s*["\']?'
-        rf'({options_pattern})'
-        rf'["\']?'
-        rf'(?![A-Za-z0-9])'
-    )
+    # ---------------------------------------------------------
+    # 1. Explicit answer statements
+    # ---------------------------------------------------------
+    answer_pattern = rf"""
+        (?ix)
+        (?:
+            final\s+answer |
+            correct\s+answer |
+            answer |
+            choice |
+            option
+        )
+        \s*
+        (?:is|should\s+be|=|:|-)? 
+        \s*
+        [\(\[]?
+        ({options_pattern})
+        [\)\]]?
+        (?![A-Za-z0-9])
+    """
 
-    # 1. Match explicit answer statement ("Answer: C", "The choice is C")
     matches = list(re.finditer(answer_pattern, txt))
+
     if matches:
         return lookup[matches[-1].group(1).lower()]
 
-    # 2. First standalone option token in output stream
-    matches = list(re.finditer(token_pattern, txt, flags=re.IGNORECASE))
+    # ---------------------------------------------------------
+    # 2. If the entire response starts with an option
+    # ---------------------------------------------------------
+    leading_pattern = rf"""
+        (?ix)^
+        \s*
+        [\(\[]?
+        ({options_pattern})
+        [\)\]]?
+        (?=
+            \s|
+            [\.\:\-]
+            |
+            $
+        )
+    """
+
+    match = re.search(leading_pattern, txt)
+
+    if match:
+        return lookup[match.group(1).lower()]
+
+    # ---------------------------------------------------------
+    # 3. Standalone option token
+    # ---------------------------------------------------------
+    token_pattern = rf"""
+        (?ix)
+        (?<![A-Za-z0-9])
+        ({options_pattern})
+        (?![A-Za-z0-9])
+    """
+
+    matches = list(re.finditer(token_pattern, txt))
+
     if matches:
         return lookup[matches[0].group(1).lower()]
 
     return "none"
 
 
-def evaluate_mcq_robust(response_text, gold_answer, prompt_text=None, options_list=None):
+def normalize_mcq_gold(gold_answer, options_list):
     """
-    Evaluates MCQ output against pre-aligned gold letter target.
+    Convert common gold-answer representations into the canonical
+    option letter A/B/C/D/E.
     """
-    if not response_text or not gold_answer:
+    if gold_answer is None:
+        return "none"
+
+    gold = str(gold_answer).strip()
+
+    if not gold:
+        return "none"
+
+    options = [str(x).strip().upper() for x in options_list]
+
+    # ---------------------------------------------------------
+    # Already a letter
+    # ---------------------------------------------------------
+    if gold.upper() in options:
+        return gold.upper()
+
+    # ---------------------------------------------------------
+    # Numeric index: 0,1,2,3 or 1,2,3,4
+    #
+    # Only convert if the dataset's answer is actually numeric.
+    # ---------------------------------------------------------
+    try:
+        n = int(gold)
+
+        if 0 <= n < len(options):
+            return options[n]
+
+        if 1 <= n <= len(options):
+            return options[n - 1]
+
+    except (ValueError, TypeError):
+        pass
+
+    # ---------------------------------------------------------
+    # Sometimes gold answer is "(A)" / "A." etc.
+    # ---------------------------------------------------------
+    match = re.match(
+        rf'^\s*[\(\[]?({"|".join(re.escape(x) for x in options)})[\)\].:]?\s*$',
+        gold,
+        re.IGNORECASE
+    )
+
+    if match:
+        return match.group(1).upper()
+
+    return "none"
+
+
+def evaluate_mcq_robust(
+    response_text,
+    gold_answer,
+    prompt_text=None,
+    options_list=None
+):
+    """
+    Extract prediction and compare against normalized gold answer.
+    """
+    if response_text is None or gold_answer is None:
         return 0
 
     if options_list is None:
-        options_list = detect_options_from_prompt(prompt_text) if prompt_text else ["A", "B", "C", "D", "E"]
+        options_list = (
+            detect_options_from_prompt(prompt_text)
+            if prompt_text
+            else ["A", "B", "C", "D", "E"]
+        )
 
-    gold_str = str(gold_answer).strip().upper()
+    pred = clean_mcq_strict(
+        response_text,
+        options_list=options_list,
+        prompt_text=prompt_text
+    )
 
-    # 1. Fast path: Match leading choice letter token at start of generation ("A\n", "A.", "A)")
-    txt = str(response_text).strip()
-    first_token = re.match(rf'^\s*([A-E])(?![A-Za-z0-9])', txt, re.IGNORECASE)
-    if first_token:
-        return 1 if first_token.group(1).upper() == gold_str else 0
+    gold = normalize_mcq_gold(
+        gold_answer,
+        options_list
+    )
 
-    # 2. Pattern path: Extract target choice via strict regex
-    pred = clean_mcq_strict(response_text, options_list=options_list, prompt_text=prompt_text)
-    if pred == "none":
-        return 0
-
-    return 1 if pred.upper() == gold_str else 0
+    return int(pred != "none" and pred.upper() == gold.upper())
 
 
 def evaluate_gsm8k_robust(response_text, gold_answer):
@@ -305,14 +409,25 @@ def process_dataframe(df, dataset_config, metric_dict=None, self_conf=False, p_t
             resp_str = out[0] if isinstance(out, list) and len(out) > 0 else str(out)
             ans = row['ans']
             prompt = row['prompts']
-            pred = clean_mcq_strict(resp_str, options_list=dataset_config.get("options"), prompt_text=prompt)
-            score = evaluate_mcq_robust(resp_str, ans, prompt_text=prompt)
+
+            pred = clean_mcq_strict(
+                resp_str,
+                options_list=dataset_config.get("options"),
+                prompt_text=prompt
+            )
+
+            score = evaluate_mcq_robust(
+                resp_str,
+                ans,
+                options_list=dataset_config.get("options"),
+                prompt_text=prompt
+            )
+
             response = [pred]
             graded_responses.append(response)
             results_em.append(score)
         df['scored_responses'] = graded_responses
         df['em'] = results_em
-
 
 
     gc.collect()
