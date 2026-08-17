@@ -311,9 +311,8 @@ def process_dataframe(df, dataset_config, metric_dict=None, self_conf=False, p_t
             graded_responses.append(response)
             results_em.append(score)
         df['scored_responses'] = graded_responses
-        df['rouge'] = results
         df['em'] = results_em
-        df['f1'] = results_f1
+
 
 
     gc.collect()
