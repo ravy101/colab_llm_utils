@@ -50,7 +50,6 @@ def clean_mcq_strict(output_text, options_list=None, prompt_text=None):
     # 1. Explicit answer statements
     # ---------------------------------------------------------
     answer_pattern = rf"""
-        (?ix)
         (?:
             final\s+answer |
             correct\s+answer |
@@ -67,7 +66,13 @@ def clean_mcq_strict(output_text, options_list=None, prompt_text=None):
         (?![A-Za-z0-9])
     """
 
-    matches = list(re.finditer(answer_pattern, txt))
+    matches = list(
+        re.finditer(
+            answer_pattern,
+            txt,
+            flags=re.IGNORECASE | re.VERBOSE
+        )
+    )
 
     if matches:
         return lookup[matches[-1].group(1).lower()]
@@ -76,20 +81,23 @@ def clean_mcq_strict(output_text, options_list=None, prompt_text=None):
     # 2. If the entire response starts with an option
     # ---------------------------------------------------------
     leading_pattern = rf"""
-        (?ix)^
+        ^
         \s*
         [\(\[]?
         ({options_pattern})
         [\)\]]?
         (?=
-            \s|
-            [\.\:\-]
-            |
+            \s |
+            [\.\:\-] |
             $
         )
     """
 
-    match = re.search(leading_pattern, txt)
+    match = re.search(
+        leading_pattern,
+        txt,
+        flags=re.IGNORECASE | re.VERBOSE
+    )
 
     if match:
         return lookup[match.group(1).lower()]
@@ -98,13 +106,18 @@ def clean_mcq_strict(output_text, options_list=None, prompt_text=None):
     # 3. Standalone option token
     # ---------------------------------------------------------
     token_pattern = rf"""
-        (?ix)
         (?<![A-Za-z0-9])
         ({options_pattern})
         (?![A-Za-z0-9])
     """
 
-    matches = list(re.finditer(token_pattern, txt))
+    matches = list(
+        re.finditer(
+            token_pattern,
+            txt,
+            flags=re.IGNORECASE | re.VERBOSE
+        )
+    )
 
     if matches:
         return lookup[matches[0].group(1).lower()]
