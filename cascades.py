@@ -580,27 +580,27 @@ class MultiaxialCascade:
         return mask
 
     def resolve_full_deferred(self, position, deferral_column, deferral_rate,
-                              cost_col='inf_cost'):
+                              cost_col='inf_cost', max_depth=64):
         """Recursively resolve a position-normalized multi-stage cascade.
 
-        At each position, among the rows that REACHED it, the top
+        At each NON-TERMINAL position, among the rows that reached it, the top
         `deferral_rate` fraction (ranked by `deferral_column`, high = defer) are
         routed onward via the per-position destination column named in
         self.pref_def_registry[position]. A row is RESOLVED at a position when
-        it is under the deferral threshold OR the position has no successor
-        (not in pref_def_registry).
+        it is under the deferral threshold OR the position is terminal.
 
-        Returns a DataFrame indexed like `position`'s dataframe, carrying the
-        fields of each row's RESOLVED (deepest-reached) position, plus:
-          cost_stage_1 .. cost_stage_D : `cost_col` paid at each hop depth
-            (stage_1 always populated; deeper stages 0 unless the row reached
-            that depth),
-          final_position : the resolved position tuple per row,
-          resolved_cost  : sum of cost_stage_* (total path cost).
+        Terminality is derived from stage membership: a position is terminal iff
+        stage_of[pos] == max(stage_of.values()). Terminal positions never route,
+        so a destination column that still points at themselves is simply never
+        read. `max_depth` is a hard backstop against a cyclic pref_def_registry.
         """
         entry = tuple(position)
         idx = self.registry[entry].index
         n = len(idx)
+        max_stage = max(self.stage_of.values())
+
+        def is_terminal(pos):
+            return self.stage_of[pos] == max_stage
 
         final_pos = np.empty(n, dtype=object)
         for i in range(n):
@@ -610,15 +610,18 @@ class MultiaxialCascade:
         def recurse(pos, arrived_mask, depth):
             pos = tuple(pos)
             df = self.registry[pos]
-            # settle everyone currently here (default resolved position)
             for j in np.where(arrived_mask)[0]:
                 final_pos[j] = pos
-            # cost paid at this hop depth by the rows that reached it
             if depth > 1:
                 arr = stage_cost.setdefault(depth, np.zeros(n, dtype=float))
                 arr[arrived_mask] = df[cost_col].values[arrived_mask]
-            # terminal: no successor stage
-            if pos not in self.pref_def_registry:
+            if is_terminal(pos):                         # stage-derived terminality
+                return
+            if depth >= max_depth:
+                raise RecursionError(
+                    f"resolve_full_deferred exceeded max_depth={max_depth} at {pos}; "
+                    f"check pref_def_registry for a cyclic route.")
+            if pos not in self.pref_def_registry:        # non-terminal but no route
                 return
             defer = self._defer_mask_by_rate(
                 df[deferral_column].values, arrived_mask, deferral_rate)
@@ -644,7 +647,7 @@ class MultiaxialCascade:
         out['resolved_cost'] = sum(out[f'cost_stage_{k}']
                                    for k in range(1, max_depth_seen + 1))
         return out
-
+    
     def fit_post_hoc_at(self, position, feature_cols, rf_kwargs=None,
                         model_type=RandomForestClassifier):
         """Returns out-of-fold predictions for each row using k-fold CV."""
