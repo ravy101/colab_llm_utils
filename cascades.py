@@ -417,6 +417,7 @@ class MultiaxialCascade:
         self.stage_of = {self.origin: 0}
         self.pref_def_registry = {self.origin: pref_def_origin}
         self.kf = KFold(n_splits=k, shuffle=True, random_state=seed)
+        origin_df['inf_cost'] = origin_df['prompt_len'] * origin_cost[0] + origin_df['output_len'] * origin_cost[1]
 
     def register_axis_data(self, df, position, cost, stage = None, pref_def_col = "preferred_deferral"):
         """Adds a dataframe for a specific point in the cascade grid."""
@@ -1185,7 +1186,7 @@ class MultiaxialCascade:
             from_position = self.origin
 
         df = self.registry[self.origin]
-        df_large = self.resolve_full_deferred(from_position, pref_def_column=pref_def_column)
+        df_large = self.resolve_full_deferred_old(from_position, pref_def_column=pref_def_column)
 
         # Per-row full destination cost for each row's preferred deferral target.
         # Post-hoc cost model: everyone pays origin; a deferred row additionally
