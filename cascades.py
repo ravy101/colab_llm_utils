@@ -407,23 +407,24 @@ def post_hoc_oof_cont(df, feature_cols, target_col, n_splits=5, random_state=42,
 
 
 class MultiaxialCascade:
-    def __init__(self, origin_df, axes_names, metric_col="gpt_score", fill_undefined=True, k=4, seed=42):
+    def __init__(self, origin_df, axes_names, origin_cost = (.1, 1), pref_def_origin = "preferred_deferral", metric_col="gpt_score", fill_undefined=True, k=4, seed=42):
         self.metric_col = metric_col
         self.axes_names = axes_names
         self.origin = (0,) * len(axes_names)
         self.registry = {self.origin: origin_df}
-        self.cost_registry = {self.origin: 1}
+        self.cost_registry = {self.origin: origin_cost}
         self.model_registry = {}
-        self.stage_of = {}
-        self.pref_def_registry = {}
+        self.stage_of = {self.origin: 0}
+        self.pref_def_registry = {self.origin: pref_def_origin}
         self.kf = KFold(n_splits=k, shuffle=True, random_state=seed)
 
-    def register_axis_data(self, df, position, cost, stage = None):
+    def register_axis_data(self, df, position, cost, stage = None, pref_def_col = "preferred_deferral"):
         """Adds a dataframe for a specific point in the cascade grid."""
         if len(position) != len(self.axes_names):
             raise ValueError(f"Position invalid, expexted {len(self.axes_names)} dimensions.")
         self.registry[position] = df
         self.cost_registry[position] = cost
+        self.pref_def_registry[position] = pref_def_col
         df['inf_cost'] = df['prompt_len'] * cost[0] + df['output_len'] * cost[1]
         if stage is not None:
             self.stage_of[tuple(position)] = int(stage)
