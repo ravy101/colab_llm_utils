@@ -519,7 +519,7 @@ class MultiaxialCascade:
             resolved = self.resolve_full_deferred(
                 from_position, deferral_column, float(r), cost_col=cost_col)
             m = resolved[metric].values
-            deferred = (resolved['final_position'].values != from_position)
+            #deferred = (resolved['final_position'].values != from_position)
             # object-array elementwise compare guard (tuples don't broadcast)
             deferred = np.fromiter(
                 (fp != from_position for fp in resolved['final_position'].values),
