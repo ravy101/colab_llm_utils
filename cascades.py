@@ -414,16 +414,33 @@ class MultiaxialCascade:
         self.registry = {self.origin: origin_df}
         self.cost_registry = {self.origin: 1}
         self.model_registry = {}
+        self.stage_of = {}
+        self.pref_def_registry = {}
         self.kf = KFold(n_splits=k, shuffle=True, random_state=seed)
 
-    def register_axis_data(self, df, position, cost):
+    def register_axis_data(self, df, position, cost, stage = None):
         """Adds a dataframe for a specific point in the cascade grid."""
         if len(position) != len(self.axes_names):
             raise ValueError(f"Position invalid, expexted {len(self.axes_names)} dimensions.")
         self.registry[position] = df
         self.cost_registry[position] = cost
+        df['inf_cost'] = df['prompt_len'] * cost[0] + df['output_len'] * cost[1]
+        if stage is not None:
+            self.stage_of[tuple(position)] = int(stage)
         print(f"Registered {[ax + ': ' + str(position[i]) for i, ax in enumerate(self.axes_names)]} | Shape: {df.shape} | Cost: {cost}")
         self.normalize_dfs()
+
+    def _stage_members(self):
+        stages = {}
+        for pos, k in self.stage_of.items():
+            stages.setdefault(k, []).append(pos)
+        return [stages[k] for k in sorted(stages)]   # -> [[(0,0)], [(0,1),(1,0)], [(2,2)]]
+
+    def _assert_legal_deferral(self, from_pos, to_pos):
+        if self.stage_of[to_pos] != self.stage_of[from_pos] + 1:
+            raise ValueError(f"{from_pos} (stage {self.stage_of[from_pos]}) may only "
+                             f"defer to stage {self.stage_of[from_pos]+1}; "
+                             f"{to_pos} is stage {self.stage_of[to_pos]}.")
 
     def normalize_dfs(self):
         min_len = min([len(df) for df in self.registry.values()])
@@ -461,6 +478,170 @@ class MultiaxialCascade:
 
     def set_pref_deferral_at(self, position, column, offset=-1):
         self.registry[position]["preferred_deferral"] = self.registry[position][column] + offset
+
+    def evaluate_cascade_over_rates(self, deferral_column, from_position=None,
+                                    cost_col='inf_cost', rates=None,
+                                    metric_override=None):
+        """Sweep the position-normalized deferral rate and evaluate the whole
+        recursive cascade at each rate (via resolve_full_deferred).
+
+        Return shape mirrors full_threshold_sim_temp: the x-axis is p_deferred
+        (fraction of entry rows that deferred at least one stage) and spend is
+        the mean accumulated path cost (sum of cost_stage_*).
+
+        deferral_column : per-position WHETHER-to-defer signal (high = defer).
+        from_position   : entry position (default origin).
+        rates           : iterable of deferral rates in [0, 1]
+                          (default np.linspace(0, 1, 51)).
+        """
+        metric = metric_override or self.metric_col
+        if from_position is None:
+            from_position = self.origin
+        from_position = tuple(from_position)
+        if rates is None:
+            rates = np.linspace(0.0, 1.0, 51)
+
+        entry_df = self.registry[from_position]
+        n = len(entry_df)
+        entry_idx = entry_df.index
+
+        accs, p_deferred, n_deferred, coverage = [], [], [], []
+        accept_acc, deferred_acc, deferred_correct, spend = [], [], [], []
+
+        # sentinels so the capped-AUC blocks always resolve, even if the rate
+        # grid never crosses a boundary (e.g. resolution too coarse).
+        p_del_20 = accs_20 = p_del_40 = accs_40 = None
+        auc_20 = auc_40 = np.nan
+
+        for r in rates:
+            resolved = self.resolve_full_deferred(
+                from_position, deferral_column, float(r), cost_col=cost_col)
+            m = resolved[metric].values
+            deferred = (resolved['final_position'].values != from_position)
+            # object-array elementwise compare guard (tuples don't broadcast)
+            deferred = np.fromiter(
+                (fp != from_position for fp in resolved['final_position'].values),
+                bool, n)
+            kept = ~deferred
+
+            accs.append(float(m.mean()))
+            p_deferred.append(float(deferred.mean()))
+            n_deferred.append(int(deferred.sum()))
+            coverage.append(float(kept.mean()))
+            accept_acc.append(float(m[kept].mean()) if kept.any() else np.nan)
+            deferred_acc.append(float(m[deferred].mean()) if deferred.any() else np.nan)
+            deferred_correct.append(int(m[deferred].sum()))
+            spend.append(float(resolved['resolved_cost'].mean()))
+
+            if len(p_deferred) > 1:
+                if p_deferred[-2] < .2 and p_deferred[-1] >= .2:
+                    p_del_20, accs_20 = misc.cap_interp_curve(
+                        p_deferred.copy(), accs.copy(), .2)
+                    auc_20 = np.trapezoid(accs_20, x=p_del_20)
+                if p_deferred[-2] < .4 and p_deferred[-1] >= .4:
+                    p_del_40, accs_40 = misc.cap_interp_curve(
+                        p_deferred.copy(), accs.copy(), .4)
+                    auc_40 = np.trapezoid(accs_40, x=p_del_40)
+
+        spend_arr = np.asarray(spend, dtype=float)
+        span = (spend_arr.max() - spend_arr.min()) if spend_arr.max() > spend_arr.min() else 1.0
+        spend_norm = ((spend_arr - spend_arr.min()) / span).tolist()
+        order = np.argsort(spend_arr)
+        cost_auc = np.trapezoid(np.asarray(accs)[order], x=spend_arr[order])
+        cost_auc_norm = np.trapezoid(np.asarray(accs)[order], x=np.asarray(spend_norm)[order])
+
+        return {"p_deferred": p_deferred, "n_deferred": n_deferred,
+                "deferred_correct": deferred_correct, "accepted_acc": accept_acc,
+                "deferred_acc": deferred_acc, "accs": accs, "acc": accs,
+                "auc": np.trapezoid(accs, x=p_deferred), "auc_20": auc_20, "auc_40": auc_40,
+                "accs_20": accs_20, "accs_40": accs_40,
+                "aurc": np.trapezoid(accept_acc, x=p_deferred),
+                "p_del_20": p_del_20, "p_del_40": p_del_40,
+                "rates": list(map(float, rates)),
+                "spend": spend, "spend_norm": spend_norm,
+                "cost_auc": cost_auc, "cost_auc_norm": cost_auc_norm}
+
+    def _defer_mask_by_rate(self, deferral_values, arrived_mask, deferral_rate):
+        """Position-normalized deferral flag.
+
+        Among rows in arrived_mask, select the top `deferral_rate` fraction by
+        deferral_values (HIGH = defer), using the same rank rule as the original
+        single-step simulator (rank(method='first')/n > 1 - rate).
+        """
+        mask = np.zeros(len(deferral_values), dtype=bool)
+        if deferral_rate <= 0 or not arrived_mask.any():
+            return mask
+        sub = pd.Series(deferral_values[arrived_mask])
+        ranks = sub.rank(method='first').values / len(sub)
+        deferred = ranks > (1 - deferral_rate)
+        mask[np.where(arrived_mask)[0][deferred]] = True
+        return mask
+
+    def resolve_full_deferred(self, position, deferral_column, deferral_rate,
+                              cost_col='inf_cost'):
+        """Recursively resolve a position-normalized multi-stage cascade.
+
+        At each position, among the rows that REACHED it, the top
+        `deferral_rate` fraction (ranked by `deferral_column`, high = defer) are
+        routed onward via the per-position destination column named in
+        self.pref_def_registry[position]. A row is RESOLVED at a position when
+        it is under the deferral threshold OR the position has no successor
+        (not in pref_def_registry).
+
+        Returns a DataFrame indexed like `position`'s dataframe, carrying the
+        fields of each row's RESOLVED (deepest-reached) position, plus:
+          cost_stage_1 .. cost_stage_D : `cost_col` paid at each hop depth
+            (stage_1 always populated; deeper stages 0 unless the row reached
+            that depth),
+          final_position : the resolved position tuple per row,
+          resolved_cost  : sum of cost_stage_* (total path cost).
+        """
+        entry = tuple(position)
+        idx = self.registry[entry].index
+        n = len(idx)
+
+        final_pos = np.empty(n, dtype=object)
+        for i in range(n):
+            final_pos[i] = entry
+        stage_cost = {1: self.registry[entry][cost_col].values.astype(float).copy()}
+
+        def recurse(pos, arrived_mask, depth):
+            pos = tuple(pos)
+            df = self.registry[pos]
+            # settle everyone currently here (default resolved position)
+            for j in np.where(arrived_mask)[0]:
+                final_pos[j] = pos
+            # cost paid at this hop depth by the rows that reached it
+            if depth > 1:
+                arr = stage_cost.setdefault(depth, np.zeros(n, dtype=float))
+                arr[arrived_mask] = df[cost_col].values[arrived_mask]
+            # terminal: no successor stage
+            if pos not in self.pref_def_registry:
+                return
+            defer = self._defer_mask_by_rate(
+                df[deferral_column].values, arrived_mask, deferral_rate)
+            if not defer.any():
+                return
+            dests = df[self.pref_def_registry[pos]].values
+            by_dest = {}
+            for j in np.where(defer)[0]:
+                d = tuple(dests[j])
+                by_dest.setdefault(d, np.zeros(n, dtype=bool))[j] = True
+            for d, mask_d in by_dest.items():
+                recurse(d, mask_d, depth + 1)
+
+        recurse(entry, np.ones(n, dtype=bool), 1)
+
+        rows = [self.registry[final_pos[k]].iloc[k] for k in range(n)]
+        out = pd.DataFrame(rows).reset_index(drop=True)
+        out.index = idx
+        max_depth_seen = max(stage_cost)
+        for k in range(1, max_depth_seen + 1):
+            out[f'cost_stage_{k}'] = stage_cost.get(k, np.zeros(n))
+        out['final_position'] = [final_pos[k] for k in range(n)]
+        out['resolved_cost'] = sum(out[f'cost_stage_{k}']
+                                   for k in range(1, max_depth_seen + 1))
+        return out
 
     def fit_post_hoc_at(self, position, feature_cols, rf_kwargs=None,
                         model_type=RandomForestClassifier):
@@ -861,7 +1042,7 @@ class MultiaxialCascade:
             print(f"  (skipped deferral AUC probe: {e})")
         print("--------------------------------------")
 
-    def resolve_full_deferred(self, from_position, pref_def_column='preferred_deferral'):
+    def resolve_full_deferred_old(self, from_position, pref_def_column='preferred_deferral'):
         idx = self.registry[from_position].index
         rows = []
         for i in idx:
