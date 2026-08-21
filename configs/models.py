@@ -196,19 +196,26 @@ qwen3_8b = {
     "model_name": "Qwen/Qwen3-8B",
     "hf_model_func": AutoModelForCausalLM,
     "bnb_config": double_quant_cfg,
-    "block_limit": None 
+    "block_limit": 0 
 }
 
 qwen3_14b = {
     "model_name": "Qwen/Qwen3-14B",
     "hf_model_func": AutoModelForCausalLM,
     "bnb_config": single_quant_cfg,
-    "block_limit": None
+    "block_limit": 0
 }
 
 qwen3_32b = {
     "model_name": "Qwen/Qwen3-32B",
     "hf_model_func": AutoModelForCausalLM,
     "bnb_config": single_quant_cfg,
-    "block_limit": None
+    "block_limit": 0
+}
+
+qwen25_72b = {
+    "model_name": "Qwen/Qwen2.5-72B-Instruct",
+    "hf_model_func": AutoModelForCausalLM,
+    "bnb_config": double_quant_cfg,
+    "block_limit": 0
 }
