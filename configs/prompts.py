@@ -18,5 +18,6 @@ Your task is to produce the final answer to the QUESTION.
 - Do not say whether the answer was correct.
 - Output ONLY the final answer to the QUESTION.
 
-FINAL ANSWER:
+VERIFIED ANSWER:
+The answer should be:
 """
