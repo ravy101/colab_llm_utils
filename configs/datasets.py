@@ -894,8 +894,8 @@ routerbench_10k = {
     "clean_name": "RouterBench-10K",
     "dataset_name": "routerbench_10k",
     "dataset_location": "local_pickle",
-    "local_file": "/content/drive/MyDrive/phase3/routerbench_recovered/routerbench_10k_sample.pkl",
-    "local_test": "/content/drive/MyDrive/phase3/routerbench_recovered/routerbench_2k_sample.pkl",
+    "local_file": "/content/drive/MyDrive/phase3/dataset/routerbench_10k_sample.pkl",
+    "local_test": "/content/drive/MyDrive/phase3/dataset/routerbench_2k_sample.pkl",
     "options": ["A", "B", "C", "D", "E"],
     "subset": "train",
     "task_type": "mixed",  # Unified task container
