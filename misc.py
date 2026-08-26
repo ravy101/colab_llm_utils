@@ -66,7 +66,7 @@ def extra_cols(df):
   df['random'] = np.random.rand(len(df))
   df['output_len'] = [len(l) for l in df['logit_outs']]
   df['word_len'] = [len(r[0].split()) for r in df['responses']]
-  df['prompt_len'] = [len(r[0].split()) for r in df['prompts']]
+  df['prompt_len'] = [len(r.split()) for r in df['prompts']]
   df['words_per_token'] = df['word_len'] / df['output_len']
   df['log_chow_av'] = [likelihood.log_chow_av(p) for p in df['top_probas']]
   df['cvar'] = [likelihood.chow_cvar_uncertainty(p) for p in df['top_probas']]
