@@ -407,7 +407,7 @@ def post_hoc_oof_cont(df, feature_cols, target_col, n_splits=5, random_state=42,
 
 
 class MultiaxialCascade:
-    def __init__(self, origin_df, axes_names, origin_cost = (.1, 1), pref_def_origin = "preferred_deferral", metric_col="gpt_score", fill_undefined=True, k=4, seed=42):
+    def __init__(self, origin_df, axes_names, origin_cost = (1, 6), pref_def_origin = "preferred_deferral", metric_col="gpt_score", fill_undefined=True, k=4, seed=42):
         self.metric_col = metric_col
         self.axes_names = axes_names
         self.origin = (0,) * len(axes_names)
