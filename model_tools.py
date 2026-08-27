@@ -183,7 +183,7 @@ class BlockOutputWrapper(torch.nn.Module):
         return self.mlp_output_raw
 
 class LlamaHelper:
-    def __init__(self, model_config, inference_config, existing_model = None):
+    def __init__(self, model_config, inference_config, existing_model = None, model_dtype=torch.bfloat16):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.tokenizer = AutoTokenizer.from_pretrained(model_config['model_name'])
         self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
@@ -210,7 +210,7 @@ class LlamaHelper:
               max_memory=max_memory,
               offload_folder="offload",
               #torch_dtype=torch.bfloat16,
-              dtype=torch.bfloat16,
+              dtype=model_dtype,
               low_cpu_mem_usage=True,
               #device_map=device_map,
               trust_remote_code=True
