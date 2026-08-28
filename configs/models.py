@@ -209,7 +209,7 @@ qwen3_14b = {
 qwen3_32b = {
     "model_name": "Qwen/Qwen3-32B",
     "hf_model_func": AutoModelForCausalLM,
-    "bnb_config": single_quant_cfg,
+    "bnb_config": double_quant_cfg,
     "block_limit": 0
 }
 
