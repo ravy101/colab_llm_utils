@@ -7,6 +7,7 @@ from . import scorers
 from . import text
 import ast
 import string
+from difflib import SequenceMatcher
 
 def detect_options_from_prompt(prompt_text):
     """
@@ -179,6 +180,97 @@ def normalize_mcq_gold(gold_answer, options_list):
 
     return "none"
 
+def extract_source_answer_text(row):
+    """
+    Extract the authoritative correct answer text from the original MMLU
+    source row.
+
+    source_row["answer"] is the zero-indexed position of the correct choice.
+    """
+    source_row = row["source_row"]
+
+    choices = source_row["choices"]
+    answer_idx = source_row["answer"]
+
+    if not isinstance(choices, (list, tuple)):
+        raise ValueError("source_row['choices'] must be a list or tuple.")
+
+    if not isinstance(answer_idx, int) or not 0 <= answer_idx < len(choices):
+        raise ValueError(
+            f"Invalid source answer index: {answer_idx!r} "
+            f"for {len(choices)} choices."
+        )
+
+    return str(choices[answer_idx]).strip()
+
+def extract_prompt_choices(prompt):
+    """
+    Extract shuffled multiple-choice options from an MMLU prompt.
+
+    Returns:
+        {
+            "A": "choice text",
+            "B": "choice text",
+            ...
+        }
+    """
+    # The prompts use the format:
+    # A) ...
+    # B) ...
+    # C) ...
+    # D) ...
+    #
+    # Capture everything between one option marker and the next marker
+    # (or the instruction text / Answer: at the end).
+    pattern = re.compile(
+        r'([A-D])\)\s*(.*?)'
+        r'(?=\s+[A-D]\)\s*|\s+Print only a single choice|\s+Answer:|$)',
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+
+    matches = pattern.findall(str(prompt))
+
+    choices = {
+        letter.upper(): text.strip()
+        for letter, text in matches
+    }
+
+    return choices
+
+def find_mmlu_correct_answer(row):
+    """
+    Determine which answer letter in the shuffled prompt corresponds to
+    the authoritative answer from the original MMLU source row.
+
+    Returns:
+        The prompt answer letter, e.g. "A", "B", "C", or "D".
+    """
+    source_answer = extract_source_answer_text(row)
+    prompt_choices = extract_prompt_choices(row["prompts"])
+
+    if not prompt_choices:
+        raise ValueError("Could not extract any choices from prompt.")
+
+    def normalize(text):
+        text = str(text).strip().lower()
+        text = re.sub(r'\s+', ' ', text)
+        text = re.sub(r'[^\w\s]', '', text)
+        return text
+
+    source_norm = normalize(source_answer)
+
+    scores = {
+        letter: SequenceMatcher(
+            None,
+            source_norm,
+            normalize(choice_text)
+        ).ratio()
+        for letter, choice_text in prompt_choices.items()
+    }
+
+    best_letter = max(scores, key=scores.get)
+
+    return best_letter
 
 def evaluate_mcq_robust(
     response_text,
@@ -360,8 +452,14 @@ def process_dataframe(df, dataset_config, metric_dict=None, self_conf=False, p_t
             task_fam = str(row['task_family']).lower()
             source_row = row.get('source_row', {})
 
-            if task_fam in ['mmlu', 'arc-challenge', 'hellaswag', 'winogrande']:
+            if task_fam in ['arc-challenge', 'hellaswag', 'winogrande']:
                 pred = clean_mcq_strict(resp_str, options_list=dataset_config.get("options"), prompt_text=prompt)
+                score = evaluate_mcq_robust(resp_str, ans, prompt_text=prompt)
+                response = [pred]
+
+            elif task_fam == 'mmlu':
+                pred = clean_mcq_strict(resp_str, options_list=dataset_config.get("options"), prompt_text=prompt)
+                ans = find_mmlu_correct_answer(row)
                 score = evaluate_mcq_robust(resp_str, ans, prompt_text=prompt)
                 response = [pred]
 
