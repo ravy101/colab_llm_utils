@@ -1389,7 +1389,7 @@ class MultiaxialCascade:
 
         oof_preds = np.zeros((len(df), n_outputs))
 
-                if verbose:
+        if verbose:
             print(f"[fit_router_lm_at] position={position} | device={device}")
             print(f"  n_candidates(classes): {n_outputs} | n_features: {n_features} "
                   f"| normalize_features: {normalize_features}")
