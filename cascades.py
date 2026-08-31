@@ -1295,6 +1295,227 @@ class MultiaxialCascade:
                 optimals.append({'prompt_id': prompt_id, 'cheapest_win': 'failure', 'score': 0})
         return pd.DataFrame(optimals)
 
+#####################################################################
+####################    Router Baselines    #########################
+#####################################################################
+    @classmethod
+    def build_router_cascade(cls, origin_df, candidate_dfs, candidate_names,
+                             candidate_costs, metric_col="gpt_score", k=4, seed=42):
+        """Assemble a single-tier ROUTING cascade (baseline).
+
+        A router selects exactly ONE model per sample using the inputs only, and
+        pays only that model's inference cost. We model this as a 1-hop cascade:
+
+          * origin  = stage 0, input-only carrier, ZERO inference cost
+                      (origin_cost=(0, 0) => inf_cost == 0 for every origin row)
+          * each candidate model = stage 1, on its own axis's +1 neighbour, i.e.
+                      candidate i lives at the unit-vector position e_i.
+
+        This maps 1:1 onto the existing multiclass/neighbour machinery: each
+        candidate becomes exactly one class, and each occupies a distinct
+        stage-1 position, so resolve_full_deferred_old / route_at_tier resolve
+        each routed row to its selected model with a single hop.
+
+        origin_df    : carrier frame holding the input text column (+ prompt_len /
+                       output_len; their values are irrelevant since origin cost
+                       is zeroed). Must be row-aligned with every candidate frame.
+        candidate_dfs   : list of per-candidate result frames (same length/order).
+        candidate_names : list of axis names, one per candidate (used as axes_names).
+        candidate_costs : list of (in_cost, out_cost) tuples, one per candidate.
+        """
+        if not (len(candidate_dfs) == len(candidate_names) == len(candidate_costs)):
+            raise ValueError("candidate_dfs, candidate_names and candidate_costs "
+                             "must be the same length.")
+        self = cls(origin_df, axes_names=list(candidate_names),
+                   origin_cost=(0, 0), metric_col=metric_col, k=k, seed=seed)
+        n_axes = len(candidate_names)
+        for i, (df, cost) in enumerate(zip(candidate_dfs, candidate_costs)):
+            position = tuple(1 if j == i else 0 for j in range(n_axes))  # unit vector e_i
+            self.register_axis_data(df, position=position, cost=cost, stage=1)
+        self.compute_cv_splits()
+        return self
+
+    def fit_router_lm_at(self, position=None, input_text_col="prompts",
+                         model_name="microsoft/deberta-v3-small",
+                         num_epochs=3, batch_size=8, learning_rate=2e-5, max_length=512,
+                         target_func=misc.basic_idxmax, feature_cols=None,
+                         normalize_features=False, device=None, verbose=True):
+        """Train an INPUT-ONLY router head over the candidate models (baseline).
+
+        Distinct from fit_post_hoc_lm_at:
+          * selects on the INPUT text only (no response is concatenated);
+          * has NO keep class -- every sample is routed to some candidate
+            (one class per candidate = one +1 axis neighbour of `position`);
+          * writes 'preferred_deferral_lm' (selected candidate position) and,
+            for convenience, per-candidate probabilities 'router_p_<axis>'.
+
+        Out-of-fold (k-fold) predictions are used so the routing choice for each
+        row is produced by a model that did not train on that row.
+
+        target_func : row-wise argmax over the candidate metric columns used to
+                      build the training label (default misc.basic_idxmax).
+        feature_cols / normalize_features : optional fused numeric features with
+                      fold-safe z-scoring (train stats only). Default off.
+        """
+        if device is None:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        if position is None:
+            position = self.origin
+        df = self.registry[position]
+        if 'fold' not in df.columns:
+            raise RuntimeError("No 'fold' column found. Call compute_cv_splits() first.")
+        if input_text_col not in list(df.columns):
+            raise ValueError(f"Column {input_text_col} not found in dataframe at {position}.")
+
+        # INPUT-ONLY text (no response concatenation).
+        texts = df[input_text_col].astype(str).values
+        feats_all, n_features = self._build_feature_matrix(df, feature_cols, normalize_features)
+
+        # Candidate positions = +1 along each axis. One class per candidate; no keep.
+        axis_positions = []
+        for i, _ in enumerate(self.axes_names):
+            pos = copy.deepcopy(position)
+            pos = pos[:i] + (pos[i] + 1,) + pos[i+1:]
+            if pos not in self.registry:
+                raise KeyError(f"Required neighbour {pos} (axis '{self.axes_names[i]}') not registered.")
+            axis_positions.append(pos)
+
+        target_dict = {}
+        for i, pos in enumerate(axis_positions):
+            target_dict[i] = self.registry[pos][self.metric_col]
+        target_df = pd.DataFrame(target_dict)
+        targets = target_df.apply(target_func, axis=1).values.astype(np.int64)
+        n_outputs = len(axis_positions)
+
+        oof_preds = np.zeros((len(df), n_outputs))
+
+                if verbose:
+            print(f"[fit_router_lm_at] position={position} | device={device}")
+            print(f"  n_candidates(classes): {n_outputs} | n_features: {n_features} "
+                  f"| normalize_features: {normalize_features}")
+            print(f"  input_text_col (INPUT-ONLY): {input_text_col}")
+            print(f"  router label distribution: {pd.Series(targets).value_counts().to_dict()}")
+
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+        except Exception as e:
+            print(f"Error loading tokenizer: {e}")
+            raise
+
+        for fold_idx in range(self.kf.get_n_splits()):
+            if verbose:
+                print(f"  fold {fold_idx + 1}/{self.kf.get_n_splits()}")
+            train_mask = (df['fold'] != fold_idx).values
+            val_mask = (df['fold'] == fold_idx).values
+            X_train_texts = texts[train_mask]
+            X_val_texts = texts[val_mask]
+            y_train = targets[train_mask]
+            y_val = targets[val_mask]
+
+            if feats_all is not None:
+                f_train = feats_all[train_mask]
+                f_val = feats_all[val_mask]
+                if normalize_features:
+                    f_train, f_val = standardize_train_val(f_train, f_val)
+            else:
+                f_train = f_val = None
+
+            train_dataset = FeatureFusionDataset(
+                X_train_texts, y_train, tokenizer, feats=f_train,
+                max_length=max_length, multilabel=False)
+            val_dataset = FeatureFusionDataset(
+                X_val_texts, y_val, tokenizer, feats=f_val,
+                max_length=max_length, multilabel=False)
+            train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+            val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+
+            model = DeBERTaFusionHead(model_name, n_outputs, num_features=n_features, dropout_rate=0.1)
+            self.model_registry[position] = model
+            try:
+                model = train_deberta_model(
+                    model, train_loader, val_loader,
+                    num_epochs=num_epochs, learning_rate=learning_rate, device=device,
+                    multilabel=False, threshold=0.5)
+            except Exception as e:
+                print(f"Error during training on fold {fold_idx}: {e}")
+                raise
+
+            probs = predict_deberta_proba(model, val_loader, n_outputs,
+                                          device=device, multilabel=False)
+            present_classes = np.arange(n_outputs)
+            aligned = np.zeros((len(X_val_texts), n_outputs))
+            aligned[:, present_classes] = probs
+            oof_preds[val_mask] = aligned
+
+            del model, train_dataset, val_dataset, train_loader, val_loader
+            torch.cuda.empty_cache()
+
+        # Per-candidate probabilities + routed destination (argmax over candidates).
+        for i, ax in enumerate(self.axes_names):
+            df[f'router_p_{ax}'] = oof_preds[:, i]
+        chosen = oof_preds.argmax(axis=1)
+        df['preferred_routing_lm'] = [axis_positions[c] for c in chosen]
+        # Confidence in the chosen model (handy for diagnostics; not a defer signal).
+        df['router_conf'] = oof_preds.max(axis=1)
+
+        if verbose:
+            print(f"Completed fit_router_lm_at at position {position} "
+                  f"(n_candidates={n_outputs}, n_features={n_features})")
+        return pd.DataFrame(oof_preds, index=df.index)
+
+    def route_at_tier(self, route_column='preferred_deferral_lm', from_position=None,
+                      cost_col='inf_cost', metric_override=None):
+        """Evaluate a pure ROUTING baseline (single-tier, one model per sample).
+
+        Analogue of evaluate_cascade_over_rates / full_threshold_sim_temp, but a
+        router has NO rate sweep: every sample is sent to exactly one selected
+        model and pays only that model's inference cost (origin cost is zero).
+        The result is therefore a single operating point, wrapped in the same
+        dict shape those methods return so it drops straight into the existing
+        plotting / AUC-comparison code.
+
+        route_column : per-row destination position (e.g. 'preferred_deferral_lm'
+                       from fit_router_lm_at, or 'oracle_preferred_deferral' from
+                       set_oracle_pref_deferral_at(..., allow_keep=False) for the
+                       oracle-router upper bound).
+
+        The single point is emitted twice (at p_deferred 0.0 and 1.0, same acc /
+        spend) so envelope/interp consumers draw a flat baseline line and
+        compare_frontiers_audc has a usable 2-point frontier.
+        """
+        metric = metric_override or self.metric_col
+        if from_position is None:
+            from_position = self.origin
+        from_position = tuple(from_position)
+
+        # Per-row resolution to the selected model (single hop). Reuses the
+        # existing per-row destination lookup.
+        routed = self.resolve_full_deferred_old(from_position, pref_def_column=route_column)
+
+        m = routed[metric].values.astype(float)
+        acc = float(m.mean())
+        # Single inference cost per sample = the selected model's cost only.
+        spend_val = float(routed[cost_col].values.astype(float).mean())
+
+        # Degenerate-but-valid curve: two identical points so downstream trapezoid
+        # / envelope code produces a flat baseline rather than erroring.
+        accs = [acc, acc]
+        p_deferred = [0.0, 1.0]
+        spend = [spend_val, spend_val]
+        spend_norm = [0.0, 0.0]
+
+        return {"p_deferred": p_deferred, "n_deferred": [0, len(m)],
+                "deferred_correct": [0, int(m.sum())],
+                "accepted_acc": [acc, acc], "deferred_acc": [acc, acc],
+                "accs": accs, "acc": accs,
+                "auc": acc, "auc_20": acc, "auc_40": acc,
+                "accs_20": None, "accs_40": None,
+                "aurc": acc, "p_del_20": None, "p_del_40": None,
+                "rates": [0.0, 1.0],
+                "spend": spend, "spend_norm": spend_norm,
+                "cost_auc": np.nan, "cost_auc_norm": np.nan,
+                "route_acc": acc, "route_spend": spend_val}
+
 
 def dummy_switch(row):
     return 0
