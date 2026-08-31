@@ -231,24 +231,24 @@ class LlamaHelper:
         return self.tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
 
     def get_sequence_logits(self, prompt, use_beams = False, stop_at='\n', follow_up_prompt = None):
-      if self.inference['thinking']:
-        messages = [
-            {"role": "user", "content": prompt}
-        ]
+      messages = [
+          {"role": "user", "content": prompt}
+      ]
 
-        # Explicitly enable thinking mode
-        text = self.tokenizer.apply_chat_template(
-            messages, 
-            tokenize=False, 
-            add_generation_prompt=True, 
-            enable_thinking=True  # Set to False for non-thinking/fast mode
-        )
-        inputs = self.tokenizer([text], return_tensors="pt")   
-      else:
-        inputs = self.tokenizer(prompt, return_tensors="pt")
-        
-      input_len = len(inputs.input_ids[0])
-      #max_len = int(input_len * (1 + OUTPUT_RATIO))
+      text = self.tokenizer.apply_chat_template(
+          messages,
+          tokenize=False,
+          add_generation_prompt=True,
+          enable_thinking=self.inference['thinking']
+      )
+
+      inputs = self.tokenizer(
+          [text],
+          return_tensors="pt"
+      )
+
+      input_len = inputs.input_ids.shape[-1]
+
 
       max_len = int(input_len + self.inference['max_new_tokens'])
       meta_info = {}
@@ -263,7 +263,7 @@ class LlamaHelper:
           outputs = self.model.generate(inputs.input_ids.to(self.model.device), output_scores=True, return_dict_in_generate=True, max_length=max_len, repetition_penalty=1.0, early_stopping=True, num_beams = 3, temperature=self.inference['temperature'])
         else:
           outputs = self.model.generate(inputs.input_ids.to(self.model.device), output_scores=True, tokenizer = self.tokenizer, return_dict_in_generate=True, eos_token_id=self.tokenizer.eos_token_id,
-            pad_token_id=self.tokenizer.eos_token_id, stop_strings=self.inference['terminators'], max_length=max_len, repetition_penalty=self.inference['repetition_penalty'], early_stopping=True, do_sample=self.inference['do_sample'], top_k=self.inference['top_k'], temperature = self.inference['temperature'])
+            pad_token_id=self.tokenizer.eos_token_id, stop_strings=self.inference['terminators'], max_new_tokens=self.inference['max_new_tokens'], repetition_penalty=self.inference['repetition_penalty'], early_stopping=True, do_sample=self.inference['do_sample'], top_k=self.inference['top_k'], temperature = self.inference['temperature'])
 
 
         #print(self.tokenizer.batch_decode(outputs.sequences[0]))
