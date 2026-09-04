@@ -905,3 +905,20 @@ routerbench_10k = {
     "doc_to_ans": doc_to_answer_routerbench,
     "doc_to_choices": doc_to_choices_routerbench,
 }
+
+
+routerbench_rag = {
+    "clean_name": "RouterBench-RAG",
+    "dataset_name": "routerbench_rag",
+    "dataset_location": "local_pickle",
+    "local_file": "/content/drive/MyDrive/phase3/dataset/routerbench_rag_out.pkl",
+    "local_test": "/content/drive/MyDrive/phase3/dataset/routerbench_2k_sample.pkl",
+    "options": ["A", "B", "C", "D", "E"],
+    "subset": "train",
+    "task_type": "mixed",  # Unified task container
+    "dict_ans": False,
+    "shuffle": True,
+    "doc_to_text": doc_to_text_routerbench,
+    "doc_to_ans": doc_to_answer_routerbench,
+    "doc_to_choices": doc_to_choices_routerbench,
+}

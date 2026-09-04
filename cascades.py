@@ -1516,6 +1516,114 @@ class MultiaxialCascade:
                 "cost_auc": np.nan, "cost_auc_norm": np.nan,
                 "route_acc": acc, "route_spend": spend_val}
 
+    def route_over_rates(self, route_score_col='router_p_large', from_position=None,
+                         cost_col='inf_cost', rates=None, metric_override=None,
+                         cheap_position=None, expensive_position=None,
+                         high_routes_expensive=True):
+        """Sweep a 2-MODEL router to trace its cost/accuracy frontier (baseline).
+
+        Only valid for a router with exactly TWO candidates. Unlike route_at_tier
+        (a single argmax operating point), this ranks samples by a continuous
+        routing score and, at each rate r, sends the top-r fraction to the
+        EXPENSIVE model and the rest to the CHEAP model. Each sample pays a
+        SINGLE inference cost (the model it was routed to) -- not cheap+expensive,
+        which is what distinguishes routing from a cascade.
+
+        Returns the same dict shape as evaluate_cascade_over_rates. The x-axis
+        p_deferred here is the fraction routed to the expensive model; spend is
+        the mean single-inference cost.
+
+        route_score_col : continuous score; HIGH = wants expensive model
+                          (default 'router_p_large' from fit_router_lm_at). Set
+                          high_routes_expensive=False if HIGH means cheap.
+        cheap/expensive_position : optionally name the two candidate positions;
+                          if omitted they are inferred from cost_registry
+                          (cheapest vs dearest of the two stage-1 candidates).
+        """
+        metric = metric_override or self.metric_col
+        if from_position is None:
+            from_position = self.origin
+        from_position = tuple(from_position)
+        if rates is None:
+            rates = np.linspace(0.0, 1.0, 51)
+
+        entry_df = self.registry[from_position]
+        n = len(entry_df)
+
+        # Identify the two candidate (stage-1) positions.
+        if cheap_position is None or expensive_position is None:
+            max_stage = max(self.stage_of.values())
+            candidates = [p for p, s in self.stage_of.items() if s != 0]
+            if len(candidates) != 2:
+                raise ValueError(
+                    f"route_over_rates requires exactly 2 candidates; found "
+                    f"{len(candidates)}. Use route_at_tier for the argmax point.")
+            candidates.sort(key=lambda p: float(np.mean(self.cost_registry[p])))
+            cheap_position, expensive_position = candidates[0], candidates[1]
+        cheap_position = tuple(cheap_position)
+        expensive_position = tuple(expensive_position)
+
+        df_cheap = self.registry[cheap_position]
+        df_exp = self.registry[expensive_position]
+        m_cheap = df_cheap[metric].values.astype(float)
+        m_exp = df_exp[metric].values.astype(float)
+        c_cheap = df_cheap[cost_col].values.astype(float)
+        c_exp = df_exp[cost_col].values.astype(float)
+
+        score = entry_df[route_score_col].values.astype(float)
+        if not high_routes_expensive:
+            score = -score
+        ranks = pd.Series(score).rank(method='first').values / n  # in (0,1]
+
+        accs, p_deferred, n_deferred, coverage = [], [], [], []
+        accept_acc, deferred_acc, deferred_correct, spend = [], [], [], []
+        p_del_20 = accs_20 = p_del_40 = accs_40 = None
+        auc_20 = auc_40 = np.nan
+
+        for r in rates:
+            to_exp = ranks > (1 - r)          # top-r fraction -> expensive model
+            to_cheap = ~to_exp
+            m = np.where(to_exp, m_exp, m_cheap)
+            c = np.where(to_exp, c_exp, c_cheap)
+
+            accs.append(float(m.mean()))
+            p_deferred.append(float(to_exp.mean()))
+            n_deferred.append(int(to_exp.sum()))
+            coverage.append(float(to_cheap.mean()))
+            accept_acc.append(float(m_cheap[to_cheap].mean()) if to_cheap.any() else np.nan)
+            deferred_acc.append(float(m_exp[to_exp].mean()) if to_exp.any() else np.nan)
+            deferred_correct.append(int(m_exp[to_exp].sum()))
+            spend.append(float(c.mean()))
+
+            if len(p_deferred) > 1:
+                if p_deferred[-2] < .2 and p_deferred[-1] >= .2:
+                    p_del_20, accs_20 = misc.cap_interp_curve(
+                        p_deferred.copy(), accs.copy(), .2)
+                    auc_20 = np.trapezoid(accs_20, x=p_del_20)
+                if p_deferred[-2] < .4 and p_deferred[-1] >= .4:
+                    p_del_40, accs_40 = misc.cap_interp_curve(
+                        p_deferred.copy(), accs.copy(), .4)
+                    auc_40 = np.trapezoid(accs_40, x=p_del_40)
+
+        spend_arr = np.asarray(spend, dtype=float)
+        span = (spend_arr.max() - spend_arr.min()) if spend_arr.max() > spend_arr.min() else 1.0
+        spend_norm = ((spend_arr - spend_arr.min()) / span).tolist()
+        order = np.argsort(spend_arr)
+        cost_auc = np.trapezoid(np.asarray(accs)[order], x=spend_arr[order])
+        cost_auc_norm = np.trapezoid(np.asarray(accs)[order], x=np.asarray(spend_norm)[order])
+
+        return {"p_deferred": p_deferred, "n_deferred": n_deferred,
+                "deferred_correct": deferred_correct, "accepted_acc": accept_acc,
+                "deferred_acc": deferred_acc, "accs": accs, "acc": accs,
+                "auc": np.trapezoid(accs, x=p_deferred), "auc_20": auc_20, "auc_40": auc_40,
+                "accs_20": accs_20, "accs_40": accs_40,
+                "aurc": np.trapezoid(accept_acc, x=p_deferred),
+                "p_del_20": p_del_20, "p_del_40": p_del_40,
+                "rates": list(map(float, rates)),
+                "spend": spend, "spend_norm": spend_norm,
+                "cost_auc": cost_auc, "cost_auc_norm": cost_auc_norm,
+                "cheap_position": cheap_position, "expensive_position": expensive_position}
+
 
 def dummy_switch(row):
     return 0
