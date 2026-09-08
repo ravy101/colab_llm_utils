@@ -128,6 +128,12 @@ llama3_70b_chat = {"model_name": "meta-llama/Llama-3.1-70B-Instruct",
                  "block_limit": None
                  }
 
+llama33_70b_chat = {"model_name": "meta-llama/Llama-3.3-70B-Instruct",
+                 "hf_model_func": AutoModelForCausalLM,
+                 "bnb_config": double_quant_cfg,
+                 "block_limit": None
+                 }
+
 llama3_70b = {"model_name": "meta-llama/Llama-3.1-70B",
                  "hf_model_func": AutoModelForCausalLM,
                  "bnb_config": double_quant_cfg,
