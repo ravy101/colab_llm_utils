@@ -125,19 +125,19 @@ llama3_8b = {"model_name": "meta-llama/Llama-3.1-8B",
 llama3_70b_chat = {"model_name": "meta-llama/Llama-3.1-70B-Instruct",
                  "hf_model_func": AutoModelForCausalLM,
                  "bnb_config": double_quant_cfg,
-                 "block_limit": None
+                 "block_limit": 0
                  }
 
 llama33_70b_chat = {"model_name": "meta-llama/Llama-3.3-70B-Instruct",
                  "hf_model_func": AutoModelForCausalLM,
                  "bnb_config": double_quant_cfg,
-                 "block_limit": None
+                 "block_limit": 0
                  }
 
 llama3_70b = {"model_name": "meta-llama/Llama-3.1-70B",
                  "hf_model_func": AutoModelForCausalLM,
                  "bnb_config": double_quant_cfg,
-                 "block_limit": None
+                 "block_limit": 0
                  }
 
 mistral_7b = {"model_name": "mistralai/Mistral-7B-v0.3",
