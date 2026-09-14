@@ -198,6 +198,13 @@ qwen3_p6b = {
     "block_limit": 0 
 }
 
+qwen3_4b = {
+    "model_name": "Qwen/Qwen3-4B",
+    "hf_model_func": AutoModelForCausalLM,
+    "bnb_config": double_quant_cfg,
+    "block_limit": 0 
+}
+
 qwen3_8b = {
     "model_name": "Qwen/Qwen3-8B",
     "hf_model_func": AutoModelForCausalLM,
