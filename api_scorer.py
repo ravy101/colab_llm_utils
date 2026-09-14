@@ -1,6 +1,6 @@
 import json
 
-def score_qa_pair(client, question, answer, reference, api_model = "gpt-4o-mini"):
+def score_qa_pair(client, question, answer, reference, api_model = "gpt-4o-mini", temperature = 1):
     """
     Scores a single QA pair against a reference (or list of references).
     Returns a JSON object with a score (0 or 1) and reasoning.
@@ -40,7 +40,7 @@ def score_qa_pair(client, question, answer, reference, api_model = "gpt-4o-mini"
                 {"role": "user", "content": user_message}
             ],
             response_format={"type": "json_object"}, # Forces valid JSON output
-            temperature=0 # Keep it deterministic
+            temperature=temperature # Keep it deterministic
         )
         return json.loads(response.choices[0].message.content)
     except Exception as e:
