@@ -765,7 +765,16 @@ class MultiaxialCascade:
                     label_cols.append(recovery_fn(base_score, axis_score).astype(np.float32))
                 targets = np.stack(label_cols, axis=1)
                 # after targets are built (multilabel, destination-correctness semantics)
-                informative = ~np.all(targets == targets[:, [0]], axis=1)
+                if "retain" in self.axes_names:
+                    ret_idx = self.axes_names.index("retain")
+
+                    other_idx = np.arange(targets.shape[1]) != ret_idx
+                    no_other_labels = np.all(targets[:, other_idx] == 0, axis=1)
+
+                    targets[no_other_labels, ret_idx] = 1.0
+
+                else:
+                    informative = ~np.all(targets == targets[:, [0]], axis=1)
                 n_outputs = len(self.axes_names)
                 axis_offset = 0
             else:
