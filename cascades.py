@@ -850,6 +850,7 @@ class MultiaxialCascade:
                     no_other_labels = np.all(targets[:, other_idx] == 0, axis=1)
 
                     targets[no_other_labels, ret_idx] = 1.0
+                    informative = ~np.all(targets == targets[:, [0]], axis=1)
 
                 else:
                     informative = ~np.all(targets == targets[:, [0]], axis=1)
@@ -1296,13 +1297,6 @@ class MultiaxialCascade:
             print(f"  (skipped deferral AUC probe: {e})")
         print("--------------------------------------")
 
-    def resolve_full_deferred_old(self, from_position, pref_def_column='preferred_deferral'):
-        idx = self.registry[from_position].index
-        rows = []
-        for i in idx:
-            target_position = self.registry[from_position].loc[i][pref_def_column]
-            rows.append(self.registry[target_position].loc[i])
-        return pd.DataFrame(rows)
 
     def _axis_costs(self, position):
         """Full invocation cost of each one-step escalation destination."""
