@@ -438,6 +438,26 @@ class MultiaxialCascade:
             stages.setdefault(k, []).append(pos)
         return [stages[k] for k in sorted(stages)]   # -> [[(0,0)], [(0,1),(1,0)], [(2,2)]]
 
+    def _tier_positions(self, tier):
+        """Resolve `tier` to a list of registered position tuples.
+
+        tier may be:
+          * an int  -> all positions p with stage_of[p] == tier
+          * an iterable of positions -> validated and returned as tuples
+        A single-member result (e.g. the origin) is the degenerate
+        single-dataframe tier.
+        """
+        if isinstance(tier, (int, np.integer)):
+            members = [p for p, s in self.stage_of.items() if s == int(tier)]
+            if not members:
+                raise ValueError(f"No positions registered in stage {tier}.")
+            return members
+        members = [tuple(p) for p in tier]
+        for p in members:
+            if p not in self.registry:
+                raise KeyError(f"Position {p} not registered.")
+        return members
+
     def _assert_legal_deferral(self, from_pos, to_pos):
         if self.stage_of[to_pos] != self.stage_of[from_pos] + 1:
             raise ValueError(f"{from_pos} (stage {self.stage_of[from_pos]}) may only "
@@ -579,21 +599,52 @@ class MultiaxialCascade:
         mask[np.where(arrived_mask)[0][deferred]] = True
         return mask
 
-    def resolve_full_deferred(self, position, deferral_column, deferral_rate,
-                              cost_col='inf_cost', max_depth=64):
-        """Recursively resolve a position-normalized multi-stage cascade.
+    def _defer_mask_by_rate_over(self, deferral_values, pool_mask, deferral_rate):
+        """Tier-wide deferral flag.
 
-        At each NON-TERMINAL position, among the rows that reached it, the top
-        `deferral_rate` fraction (ranked by `deferral_column`, high = defer) are
-        routed onward via the per-position destination column named in
-        self.pref_def_registry[position]. A row is RESOLVED at a position when
-        it is under the deferral threshold OR the position is terminal.
-
-        Terminality is derived from stage membership: a position is terminal iff
-        stage_of[pos] == max(stage_of.values()). Terminal positions never route,
-        so a destination column that still points at themselves is simply never
-        read. `max_depth` is a hard backstop against a cyclic pref_def_registry.
+        Identical rank rule to _defer_mask_by_rate (HIGH = defer,
+        rank(method='first')/n > 1 - rate), but ranks ALL rows in pool_mask
+        together rather than per-position. `deferral_values` must already hold,
+        for every pooled row, that row's score read from its OWN current
+        position; scores of non-pooled rows are ignored.
         """
+        mask = np.zeros(len(deferral_values), dtype=bool)
+        if deferral_rate <= 0 or not pool_mask.any():
+            return mask
+        sub = pd.Series(deferral_values[pool_mask])
+        ranks = sub.rank(method='first').values / len(sub)
+        deferred = ranks > (1 - deferral_rate)
+        mask[np.where(pool_mask)[0][deferred]] = True
+        return mask
+
+
+
+    def resolve_full_deferred(self, position, deferral_column, deferral_rate,
+                              cost_col='inf_cost', max_depth=64, rank_scope="tier"):
+        """Resolve a multi-stage cascade, advancing one STAGE (tier) per wave.
+
+        At each wave the rows currently sitting at a non-terminal, routable
+        position are pooled and the top `deferral_rate` fraction is escalated to
+        the next stage via the per-position destination column named in
+        self.pref_def_registry[position]. Non-deferred rows resolve where they
+        are. Terminality is stage-derived: pos is terminal iff
+        stage_of[pos] == max(stage_of.values()).
+
+        rank_scope :
+            "tier"     (default) -- pool ALL arrivals across every position in
+                       the current stage and rank them together, so a generally
+                       weaker intervention can contribute more (or fewer)
+                       deferrals than its siblings. Scores are read from each
+                       row's own current position; they are NOT normalized
+                       across positions (raw pooling), so `deferral_column` is
+                       assumed comparable across a stage's positions.
+            "position" -- legacy behaviour: rank each position's arrivals
+                       independently (top `deferral_rate` fraction PER position).
+
+        `max_depth` is a hard backstop against a cyclic pref_def_registry.
+        """
+        if rank_scope not in ("tier", "position"):
+            raise ValueError("rank_scope must be 'tier' or 'position'")
         entry = tuple(position)
         idx = self.registry[entry].index
         n = len(idx)
@@ -602,41 +653,68 @@ class MultiaxialCascade:
         def is_terminal(pos):
             return self.stage_of[pos] == max_stage
 
-        final_pos = np.empty(n, dtype=object)
+        # each row's current position; advances one stage per wave
+        location = np.empty(n, dtype=object)
         for i in range(n):
-            final_pos[i] = entry
+            location[i] = entry
         stage_cost = {1: self.registry[entry][cost_col].values.astype(float).copy()}
 
-        def recurse(pos, arrived_mask, depth):
-            pos = tuple(pos)
-            df = self.registry[pos]
-            for j in np.where(arrived_mask)[0]:
-                final_pos[j] = pos
-            if depth > 1:
-                arr = stage_cost.setdefault(depth, np.zeros(n, dtype=float))
-                arr[arrived_mask] = df[cost_col].values[arrived_mask]
-            if is_terminal(pos):                         # stage-derived terminality
-                return
+        depth = 1
+        active = np.ones(n, dtype=bool)     # rows still eligible to escalate
+        while active.any():
             if depth >= max_depth:
                 raise RecursionError(
-                    f"resolve_full_deferred exceeded max_depth={max_depth} at {pos}; "
+                    f"resolve_full_deferred exceeded max_depth={max_depth}; "
                     f"check pref_def_registry for a cyclic route.")
-            if pos not in self.pref_def_registry:        # non-terminal but no route
-                return
-            defer = self._defer_mask_by_rate(
-                df[deferral_column].values, arrived_mask, deferral_rate)
+
+            cur_positions = set(location[j] for j in np.where(active)[0])
+            routable = [p for p in cur_positions
+                        if (not is_terminal(p)) and (p in self.pref_def_registry)]
+            if not routable:
+                break
+
+            # per-row score from its OWN current position + this wave's pool
+            scores = np.full(n, np.nan, dtype=float)
+            pool_mask = np.zeros(n, dtype=bool)
+            at_masks = {}
+            for p in routable:
+                at_p = active & np.fromiter((loc == p for loc in location), bool, n)
+                at_masks[p] = at_p
+                if not at_p.any():
+                    continue
+                pv = self.registry[p][deferral_column].values
+                scores[at_p] = pv[at_p]
+                pool_mask |= at_p
+
+            if rank_scope == "tier":
+                defer = self._defer_mask_by_rate_over(scores, pool_mask, deferral_rate)
+            else:  # "position"
+                defer = np.zeros(n, dtype=bool)
+                for p in routable:
+                    pv = self.registry[p][deferral_column].values
+                    defer |= self._defer_mask_by_rate(pv, at_masks[p], deferral_rate)
+
+            # non-deferred pooled rows resolve here; only deferred rows continue
+            active = active & defer
             if not defer.any():
-                return
-            dests = df[self.pref_def_registry[pos]].values
-            by_dest = {}
-            for j in np.where(defer)[0]:
-                d = tuple(dests[j])
-                by_dest.setdefault(d, np.zeros(n, dtype=bool))[j] = True
-            for d, mask_d in by_dest.items():
-                recurse(d, mask_d, depth + 1)
+                break
 
-        recurse(entry, np.ones(n, dtype=bool), 1)
+            new_location = location.copy()
+            next_depth = depth + 1
+            arr = stage_cost.setdefault(next_depth, np.zeros(n, dtype=float))
+            for p in routable:
+                at_p = defer & at_masks[p]
+                if not at_p.any():
+                    continue
+                dests = self.registry[p][self.pref_def_registry[p]].values
+                for j in np.where(at_p)[0]:
+                    d = tuple(dests[j])
+                    new_location[j] = d
+                    arr[j] = self.registry[d][cost_col].values[j]
+            location = new_location
+            depth = next_depth
 
+        final_pos = location
         rows = [self.registry[final_pos[k]].iloc[k] for k in range(n)]
         out = pd.DataFrame(rows).reset_index(drop=True)
         out.index = idx
@@ -904,6 +982,168 @@ class MultiaxialCascade:
                   f"(multilabel={multilabel}, n_features={n_features})")
         return pd.DataFrame(oof_preds, index=df.index)
 
+    def fit_correctness_lm_at_tier(self, tier, input_text_col="prompts",
+                                   output_text_col="responses",
+                                   model_name="microsoft/deberta-v3-small",
+                                   num_epochs=3, batch_size=8, learning_rate=2e-5,
+                                   max_length=512, use_pos_weight=True, threshold=0.5,
+                                   score_col="post_hoc_conf", feature_cols=None,
+                                   normalize_features=False, device=None, verbose=True):
+        """Fit ONE shared post-hoc correctness head over a whole TIER.
+
+        Inference is assumed exhaustive: every sample has an observed output and
+        correctness label at every position in the tier. The scorer is trained
+        on the POOLED set -- each sample contributes one training example PER
+        position (its own text/output/features + that position's
+        `metric_col > 0` label). Predictions are out-of-fold: for fold f the
+        head is trained on every position's `fold != f` rows and scores every
+        position's `fold == f` rows, so a validation sample's copies at ALL
+        positions are excluded from its own training fold (no leakage).
+
+        The resulting P(incorrect) (HIGH = defer) is written back into EACH
+        position's own frame at `score_col`, aligned on the shared index. Because
+        inference is exhaustive there are no NaNs. rank_scope="tier" deferral can
+        then pool these comparable per-position scores.
+
+        tier : stage int or explicit list of positions (single member => the
+               single-dataframe case, e.g. the origin).
+        feature_cols / normalize_features : optional fused numeric features with
+               fold-safe z-scoring fit on the POOLED training rows only.
+        """
+        if device is None:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        positions = self._tier_positions(tier)
+        n_outputs = 2
+
+        for p in positions:
+            df_p = self.registry[p]
+            if 'fold' not in df_p.columns:
+                raise RuntimeError("No 'fold' column found. Call compute_cv_splits() first.")
+            for c in [input_text_col, output_text_col, self.metric_col]:
+                if c not in list(df_p.columns):
+                    raise ValueError(f"Column {c} not found in dataframe at {p}.")
+
+        # per-position aligned arrays; init score column to NaN (filled OOF)
+        per_pos = {}
+        n_features = 0
+        for p in positions:
+            df_p = self.registry[p]
+            texts = (df_p[input_text_col].astype(str) + " [SEP] "
+                     + df_p[output_text_col].astype(str)).values
+            y = (df_p[self.metric_col].values > 0).astype(np.int64)
+            feats, nf = self._build_feature_matrix(df_p, feature_cols, normalize_features)
+            n_features = nf
+            per_pos[p] = dict(texts=texts, y=y, feats=feats,
+                              fold=df_p['fold'].values, index=df_p.index.values)
+            df_p[score_col] = np.nan
+
+        if verbose:
+            print(f"[fit_correctness_lm_at_tier] tier={positions} | device={device}")
+            print(f"  pooled examples/fold-train ~= sum over positions of (fold!=f) rows")
+            print(f"  n_features: {n_features} | normalize_features: {normalize_features}")
+            for p in positions:
+                yr = per_pos[p]['y'].mean()
+                print(f"  correctness rate [{p}]: {yr:.4f}")
+
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+        except Exception as e:
+            print(f"Error loading tokenizer: {e}")
+            raise
+
+        for fold_idx in range(self.kf.get_n_splits()):
+            if verbose:
+                print(f"  fold {fold_idx + 1}/{self.kf.get_n_splits()}")
+
+            # ---- pooled training set: every position's fold != f rows ----
+            tr_texts, tr_y, tr_feats = [], [], []
+            for p in positions:
+                d = per_pos[p]
+                tr = d['fold'] != fold_idx
+                tr_texts.append(d['texts'][tr])
+                tr_y.append(d['y'][tr])
+                if d['feats'] is not None:
+                    tr_feats.append(d['feats'][tr])
+            X_train_texts = np.concatenate(tr_texts)
+            y_train = np.concatenate(tr_y)
+            f_train = np.concatenate(tr_feats) if tr_feats else None
+
+            # class weights from the POOLED training labels
+            class_weight = None
+            if use_pos_weight:
+                counts = np.bincount(y_train, minlength=n_outputs).astype(float)
+                counts = np.maximum(counts, 1.0)
+                class_weight = y_train.shape[0] / (n_outputs * counts)
+
+            # fold-safe normalization stats from POOLED training rows only
+            norm_stats = None
+            if normalize_features and f_train is not None:
+                _, _ = standardize_train_val(f_train, None)  # validates shape
+                mean = f_train.mean(axis=0, keepdims=True)
+                std = f_train.std(axis=0, keepdims=True)
+                std = np.where(std < 1e-6, 1.0, std)
+                norm_stats = (mean.astype(np.float32), std.astype(np.float32))
+                f_train = ((f_train - norm_stats[0]) / norm_stats[1]).astype(np.float32)
+
+            train_dataset = FeatureFusionDataset(
+                X_train_texts, y_train, tokenizer, feats=f_train,
+                max_length=max_length, multilabel=False)
+            train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+
+            # a tiny val loader for train_deberta_model's internal reporting:
+            # reuse the pooled fold==f rows of the FIRST position (diagnostic only).
+            d0 = per_pos[positions[0]]
+            va0 = d0['fold'] == fold_idx
+            vf0 = d0['feats'][va0] if d0['feats'] is not None else None
+            if norm_stats is not None and vf0 is not None:
+                vf0 = ((vf0 - norm_stats[0]) / norm_stats[1]).astype(np.float32)
+            report_ds = FeatureFusionDataset(
+                d0['texts'][va0], d0['y'][va0], tokenizer, feats=vf0,
+                max_length=max_length, multilabel=False)
+            report_loader = DataLoader(report_ds, batch_size=batch_size, shuffle=False)
+
+            model = DeBERTaFusionHead(model_name, n_outputs,
+                                      num_features=n_features, dropout_rate=0.1)
+
+            if class_weight is not None:
+                cw = torch.tensor(class_weight, dtype=torch.float, device=device)
+                _orig_ce = nn.CrossEntropyLoss
+                nn.CrossEntropyLoss = lambda *a, **k: _orig_ce(weight=cw)
+            try:
+                model = train_deberta_model(
+                    model, train_loader, report_loader,
+                    num_epochs=num_epochs, learning_rate=learning_rate, device=device,
+                    multilabel=False, threshold=threshold)
+            finally:
+                if class_weight is not None:
+                    nn.CrossEntropyLoss = _orig_ce
+
+            # ---- predict each position's fold==f rows; scatter back ----
+            for p in positions:
+                d = per_pos[p]
+                va = d['fold'] == fold_idx
+                if not va.any():
+                    continue
+                fv = d['feats'][va] if d['feats'] is not None else None
+                if norm_stats is not None and fv is not None:
+                    fv = ((fv - norm_stats[0]) / norm_stats[1]).astype(np.float32)
+                va_ds = FeatureFusionDataset(
+                    d['texts'][va], d['y'][va], tokenizer, feats=fv,
+                    max_length=max_length, multilabel=False)
+                va_loader = DataLoader(va_ds, batch_size=batch_size, shuffle=False)
+                probs = predict_deberta_proba(model, va_loader, n_outputs,
+                                              device=device, multilabel=False)
+                self.registry[p].loc[d['index'][va], score_col] = probs[:, 0]  # P(incorrect)
+
+            del model, train_dataset, train_loader, report_ds, report_loader
+            torch.cuda.empty_cache()
+
+        if verbose:
+            for p in positions:
+                self._sanity_check_correctness_lm(p, score_col)
+        return {p: self.registry[p][score_col].copy() for p in positions}
+
+    
     def fit_correctness_lm_at(self, position=None, input_text_col="prompts",
                               output_text_col="responses",
                               model_name="microsoft/deberta-v3-small",
