@@ -241,6 +241,24 @@ class LlamaHelper:
           add_generation_prompt=True,
           enable_thinking=self.inference['thinking']
       )
+      
+      if self.inference['thinking']:
+        messages = [
+            {"role": "user", "content": prompt}
+        ]
+
+        # Explicitly enable thinking mode
+        text = self.tokenizer.apply_chat_template(
+            messages, 
+            tokenize=False, 
+            add_generation_prompt=True, 
+            enable_thinking=True  # Set to False for non-thinking/fast mode
+        )
+        inputs = self.tokenizer([text], return_tensors="pt")   
+      else:
+        inputs = self.tokenizer(prompt, return_tensors="pt")
+        
+      input_len = len(inputs.input_ids[0])
 
       inputs = self.tokenizer(
           [text],
