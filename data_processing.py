@@ -471,6 +471,9 @@ def process_dataframe(df, dataset_config, metric_dict=None, self_conf=False, p_t
                 tests = source_row.get('test_list', ans) if isinstance(source_row, dict) else ans
                 score = evaluate_mbpp_code(resp_str, tests)
                 response = [resp_str]
+            elif task_fam == 'qa':
+                score = scorers.best_f1(resp_str, [ans])
+                response = [resp_str]
 
             else:
                 pred = clean_mcq_strict(resp_str, options_list=dataset_config.get("options"), prompt_text=prompt)
