@@ -1759,6 +1759,121 @@ class MultiaxialCascade:
                 "cost_auc": np.nan, "cost_auc_norm": np.nan,
                 "route_acc": acc, "route_spend": spend_val}
 
+
+
+    def route_cost_sweep(self, from_position=None, cost_col='inf_cost',
+                        rates=None, metric_override=None,
+                        score_mode="prob_ratio", candidate_positions=None,
+                        assert_endpoints=True):
+        """Post-hoc ROUTER sweep over a FLAT, cost-ordered set of peer candidates.
+
+        This is a route-only baseline: all candidates are peers (one hop, one model
+        per sample), each with its own per-row inference cost. There is NO tier /
+        escalation / cost accumulation -- each sample pays the SINGLE inference cost
+        of the one model it is routed to, exactly like route_at_tier / route_over_rates [1].
+
+        The knob r in [0, 1] sweeps the assigned model from the CHEAPEST peer toward
+        the MOST EXPENSIVE peer:
+        r = 0.0 -> every sample on the cheapest candidate  (min mean spend)
+        r = 1.0 -> every sample on the most expensive candidate (max mean spend)
+        At intermediate r, the top-r fraction of rows (by the chosen score) are sent
+        to the most expensive candidate and the rest to the cheapest -- the direct
+        multi-candidate analogue of route_over_rates' 2-model split [1].
+
+        score_mode (which rows move to the expensive model first):
+        "prob_ratio" -> router_p_<expensive> - router_p_<cheapest>   (default)
+        "expensive"  -> router_p_<expensive> only
+        Both signals come from fit_router_lm_at's per-candidate router_p_<axis> [1].
+
+        Returns the same dict shape as route_over_rates so it plots directly.
+        """
+        metric = metric_override or self.metric_col
+        if from_position is None:
+            from_position = self.origin
+        from_position = tuple(from_position)
+        if rates is None:
+            rates = np.linspace(0.0, 1.0, 51)
+
+        df = self.registry[from_position]
+        n = len(df)
+        idx = df.index
+
+        # Candidate peers = the +1 unit-vector neighbours of the origin (one per axis).
+        if candidate_positions is None:
+            candidate_positions = [tuple(1 if j == i else 0 for j in range(len(self.axes_names)))
+                                for i in range(len(self.axes_names))]
+        candidate_positions = [tuple(p) for p in candidate_positions]
+
+        # Order peers by their OWN mean per-row inf_cost (cost_registry holds the
+        # (in,out) tuple, not a scalar, so read the frame's cost column instead).
+        def _mean_cost(p):
+            return float(self.registry[p][cost_col].astype(float).mean())
+        order = sorted(candidate_positions, key=_mean_cost)   # cheapest -> dearest
+        cheapest, dearest = order[0], order[-1]
+
+        def _axis_of(p):
+            return self.axes_names[list(p).index(1)]
+        cheap_prob = df[f'router_p_{_axis_of(cheapest)}'].values.astype(float)
+        exp_prob   = df[f'router_p_{_axis_of(dearest)}'].values.astype(float)
+        if score_mode == "expensive":
+            score = exp_prob
+        elif score_mode == "prob_ratio":
+            score = exp_prob - cheap_prob
+        else:
+            raise ValueError("score_mode must be 'prob_ratio' or 'expensive'")
+        ranks = pd.Series(score, index=idx).rank(method='first').values / n  # in (0,1]
+
+        # Per-row metric/cost for the two endpoints (single-inference cost) [1].
+        m_cheap = self.registry[cheapest][metric].values.astype(float)
+        m_exp   = self.registry[dearest][metric].values.astype(float)
+        c_cheap = self.registry[cheapest][cost_col].values.astype(float)
+        c_exp   = self.registry[dearest][cost_col].values.astype(float)
+
+        accs=[]; p_deferred=[]; n_deferred=[]; coverage=[]
+        accept_acc=[]; deferred_acc=[]; deferred_correct=[]; spend=[]
+        for r in rates:
+            to_exp = ranks > (1 - r)              # top-r fraction -> most expensive peer
+            to_cheap = ~to_exp
+            m = np.where(to_exp, m_exp, m_cheap)
+            c = np.where(to_exp, c_exp, c_cheap)
+            accs.append(float(m.mean()))
+            p_deferred.append(float(to_exp.mean()))
+            n_deferred.append(int(to_exp.sum()))
+            coverage.append(float(to_cheap.mean()))
+            accept_acc.append(float(m_cheap[to_cheap].mean()) if to_cheap.any() else np.nan)
+            deferred_acc.append(float(m_exp[to_exp].mean()) if to_exp.any() else np.nan)
+            deferred_correct.append(int(m_exp[to_exp].sum()))
+            spend.append(float(c.mean()))
+
+        spend_arr = np.asarray(spend, float)
+        span = (spend_arr.max() - spend_arr.min()) if spend_arr.max() > spend_arr.min() else 1.0
+        spend_norm = ((spend_arr - spend_arr.min()) / span).tolist()
+        o = np.argsort(spend_arr)
+        cost_auc      = np.trapezoid(np.asarray(accs)[o], x=spend_arr[o])
+        cost_auc_norm = np.trapezoid(np.asarray(accs)[o], x=np.asarray(spend_norm)[o])
+
+        if assert_endpoints:
+            exp_endpoint = float(self.registry[dearest][cost_col].astype(float).mean())
+            cheap_endpoint = float(self.registry[cheapest][cost_col].astype(float).mean())
+            assert abs(spend[-1] - exp_endpoint) < 1e-6, \
+                f"r=1 spend {spend[-1]} != dearest mean cost {exp_endpoint}"
+            assert abs(spend[0] - cheap_endpoint) < 1e-6, \
+                f"r=0 spend {spend[0]} != cheapest mean cost {cheap_endpoint}"
+
+        return {"p_deferred": p_deferred, "n_deferred": n_deferred,
+                "deferred_correct": deferred_correct, "accepted_acc": accept_acc,
+                "deferred_acc": deferred_acc, "accs": accs, "acc": accs,
+                "auc": np.trapezoid(accs, x=p_deferred), "auc_20": np.nan, "auc_40": np.nan,
+                "accs_20": None, "accs_40": None,
+                "aurc": np.trapezoid(accept_acc, x=p_deferred),
+                "p_del_20": None, "p_del_40": None,
+                "rates": list(map(float, rates)),
+                "spend": spend, "spend_norm": spend_norm,
+                "cost_auc": cost_auc, "cost_auc_norm": cost_auc_norm,
+                "cheap_position": cheapest, "expensive_position": dearest}
+
+
+
     def route_over_rates(self, route_score_col='router_p_large', from_position=None,
                          cost_col='inf_cost', rates=None, metric_override=None,
                          cheap_position=None, expensive_position=None,
